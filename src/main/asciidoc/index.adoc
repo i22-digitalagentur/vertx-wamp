@@ -1,0 +1,65 @@
+= Vert.x WAMP
+
+== Using Vert.x WAMP
+
+This is an unofficial Vert.x component that provides a limited broker component for the basic WAMP profile with JSON over websockets.
+
+These limitations will probably be lifted and functionality be enhanced upon in future releases.
+
+* Maven (in your `pom.xml`):
+
+[source,xml,subs="+attributes"]
+----
+<dependency>
+    <groupId>io.vertx</groupId>
+    <artifactId>vertx-wamp</artifactId>
+    <version>${maven.version}</version>
+</dependency>
+----
+
+* Gradle (in your `build.gradle` file):
+
+[source,groovy,subs="+attributes"]
+----
+compile io.vertx:vertx-wamp:${maven.version}
+----
+
+= Vert.x WAMP server
+
+This component provides a server which is able to handle connections, communication and messages exchange with remote
+link:https://wamp-proto.org[WAMP] clients.
+Right now clients are not supported to publish data themselves.
+Instead, you can publish events to a realm and it will be distributed to all clients with subscriptions to them.
+
+As such it's not a fully featured WAMP broker but might be soon.
+The same way, the Dealer role for RPC functionality is not supported.
+
+WARNING: this module has the tech preview status, this means the API can change between versions.
+
+== Getting Started
+
+=== Accepting client connections and publishing events
+
+This example shows how to start the Websocket server and publish messages to all subscribed clients in a realm.
+First, create a {@link io.vertx.wamp.WAMPWebsocketServer} instance and use {@link io.vertx.wamp.WAMPWebsocketServer#addRealm(io.vertx.wamp.Uri)} to add a realm.
+Now you can use {@link io.vertx.wamp.Relam#publishMessage(io.vertx.wamp.messages.PublishMessage) to publish a message.
+
+[source,$lang]
+----
+{@link examples.VertxWAMPWebsocketServer#example1}
+----
+
+=== Closing the server
+
+{@link io.vertx.wamp.WAMPWebsocketServer#close()} can be used for shutting down the server.
+It initiates the shutdown protocol for all connected clients.
+This method is asynchronous and provides an overloaded version which also receives a completion handler that will be called once the server is fully closed.
+
+[source,$lang]
+----
+{@link examples.VertxWAMPWebsocketExamples#example2}
+----
+
+=== Automatic clean-up in verticles
+
+If you’re creating WAMP servers from inside verticles, those servers will be automatically closed when the verticle is undeployed.
