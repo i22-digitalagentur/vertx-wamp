@@ -42,7 +42,7 @@ WARNING: this module has the tech preview status, this means the API can change 
 
 This example shows how to start the Websocket server and publish messages to all subscribed clients in a realm.
 First, create a {@link io.vertx.wamp.WAMPWebsocketServer} instance and use {@link io.vertx.wamp.WAMPWebsocketServer#addRealm(io.vertx.wamp.Uri)} to add a realm.
-Now you can use {@link io.vertx.wamp.Relam#publishMessage(io.vertx.wamp.messages.PublishMessage) to publish a message.
+Now you can use {@link io.vertx.wamp.Realm#publishMessage(io.vertx.wamp.messages.PublishMessage) to publish a message.
 
 [source,$lang]
 ----
@@ -57,7 +57,19 @@ This method is asynchronous and provides an overloaded version which also receiv
 
 [source,$lang]
 ----
-{@link examples.VertxWAMPWebsocketExamples#example2}
+{@link examples.VertxWAMPWebsocketServerExamples#example2}
+----
+
+
+=== Using a security policy
+
+{@link io.vertx.wamp.WAMPWebsocketServer#withSecurityPolicy(SecurityPolicy)} provides a mechanism for fine-grained
+control over which client is permitted to perform which action.
+Use it if you need to control who is connecting to your server.
+
+[source,$lang]
+----
+{@link examples.SecurityPolicyExamples#example1}
 ----
 
 === Automatic clean-up in verticles
