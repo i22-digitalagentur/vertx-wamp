@@ -14,8 +14,8 @@ public class SubscribeMessage implements WAMPMessage {
 
   public SubscribeMessage(JsonArray args) {
     this.id = args.getLong(0);
-    this.options = args.getJsonObject(2).getMap();
-    this.topic = new Uri(args.getString(3));
+    this.options = args.getJsonObject(1).getMap();
+    this.topic = new Uri(args.getString(2));
   }
 
   @Override

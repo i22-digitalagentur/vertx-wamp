@@ -129,6 +129,7 @@ public class WampSession {
                                                .findFirst();
     if (targetRealm.isPresent()) {
       this.realm = targetRealm.get();
+      this.state = State.ESTABLISHED;
       sendWelcome();
     } else {
       abortConnection(Uri.NO_SUCH_REALM);
@@ -136,20 +137,19 @@ public class WampSession {
   }
 
   private void handleSubscribe(SubscribeMessage message) {
-    if (clientInfo != null) {
-      if (!clientInfo.getPolicy().authorizeSubscribe(clientInfo,
+    if (clientInfo != null && !clientInfo.getPolicy().authorizeSubscribe(clientInfo,
           this.realm.getUri(),
           message.getTopic())) {
-        // any event related to the subscription will be delivered via the message transport
-        long subscriptionId = realm.addSubscription(messageTransport::sendMessage, message.getTopic());
-        messageTransport.sendMessage(MessageFactory.createSubscribedMessage(message.getId(), subscriptionId));
-      } else {
-        messageTransport.sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.SUBSCRIBE,
-            message.getId(),
-            Map.of(),
-            Uri.NOT_AUTHORIZED));
-      }
+      messageTransport.sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.SUBSCRIBE,
+          message.getId(),
+          Map.of(),
+          Uri.NOT_AUTHORIZED));
+      return;
     }
+
+    // any event related to the subscription will be delivered via the message transport
+    long subscriptionId = realm.addSubscription(messageTransport::sendMessage, message.getTopic());
+    messageTransport.sendMessage(MessageFactory.createSubscribedMessage(message.getId(), subscriptionId));
   }
 
   private void sendWelcome() {

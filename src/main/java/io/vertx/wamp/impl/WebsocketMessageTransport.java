@@ -31,6 +31,9 @@ public class WebsocketMessageTransport implements MessageTransport {
     }
     JsonArray arrayData = (JsonArray) decoded;
     WAMPMessage message = MessageFactory.parseMessage(arrayData);
+    if (message == null) {
+      throw new RuntimeException("Failed to decode message: " + s);
+    }
     if (messageConsumer != null) {
       messageConsumer.accept(message);
     }
@@ -48,7 +51,7 @@ public class WebsocketMessageTransport implements MessageTransport {
 
   private String encodeJson(WAMPMessage message) {
     JsonArray encoded = new JsonArray();
-    encoded.add(message.getType());
+    encoded.add(message.getType().getMessageCode());
     for (Object entry : message.getPayload()) {
       encoded.add(entry);
     }

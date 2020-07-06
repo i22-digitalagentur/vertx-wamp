@@ -21,6 +21,8 @@ public class MessageFactory {
         return new AbortMessage(message);
       case GOODBYE:
         return new GoodbyeMessage(message);
+      case SUBSCRIBE:
+        return new SubscribeMessage(message);
     }
     return null;
   }
