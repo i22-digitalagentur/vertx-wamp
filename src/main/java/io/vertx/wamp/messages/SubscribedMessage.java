@@ -22,4 +22,12 @@ public class SubscribedMessage implements WAMPMessage {
   public List<?> getPayload() {
     return List.of(id, subscription);
   }
+
+  public long getId() {
+    return id;
+  }
+
+  public long getSubscription() {
+    return subscription;
+  }
 }

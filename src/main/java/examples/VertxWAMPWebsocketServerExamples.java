@@ -19,6 +19,7 @@ package examples;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.docgen.Source;
+import io.vertx.wamp.Realm;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPWebsocketServer;
 
@@ -35,7 +36,8 @@ public class VertxWAMPWebsocketServerExamples {
    */
   public void example1(Vertx vertx) {
     WAMPWebsocketServer wampServer = WAMPWebsocketServer.create(vertx);
-    wampServer.addRealm(new Uri("de.i22.demo")).listen(8080).onComplete(res -> {
+    Realm realm = new Realm(new Uri("example.realm"));
+    wampServer.addRealm(realm).listen(8080).onComplete(res -> {
       if (res.succeeded()) {
         res.result().getRealms().get(0).publishMessage(1,
             new Uri("de.i22.topic"),
@@ -53,7 +55,8 @@ public class VertxWAMPWebsocketServerExamples {
    */
   public void example2(Vertx vertx) {
     WAMPWebsocketServer wampServer = WAMPWebsocketServer.create(vertx);
-    wampServer.addRealm(new Uri("de.i22.demo")).listen(8080).onComplete(res -> {
+    Realm realm = new Realm(new Uri("example.realm"));
+    wampServer.addRealm(realm).listen(8080).onComplete(res -> {
       if (res.succeeded()) {
         Promise promise = Promise.promise();
         promise.future().onComplete(_res -> {

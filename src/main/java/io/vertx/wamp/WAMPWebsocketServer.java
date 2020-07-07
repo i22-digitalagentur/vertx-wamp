@@ -37,11 +37,11 @@ public class WAMPWebsocketServer implements RealmProvider, Closeable {
     return Collections.unmodifiableList(realms);
   }
 
-  public WAMPWebsocketServer addRealm(Uri realmId) {
-    if (this.realms.stream().anyMatch(realm -> realm.getUri() == realmId)) {
+  public WAMPWebsocketServer addRealm(Realm realm) {
+    if (this.realms.contains(realm)) {
       throw new RealmExistsException();
     }
-    this.realms.add(new Realm(realmId));
+    this.realms.add(realm);
     return this;
   }
 

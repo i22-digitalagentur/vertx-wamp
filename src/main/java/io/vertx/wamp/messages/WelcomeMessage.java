@@ -15,6 +15,10 @@ public class WelcomeMessage implements WAMPMessage {
     this.details = details;
   }
 
+  public long getSessionId() {
+    return sessionId;
+  }
+
   @Override
   public Type getType() {
     return Type.WELCOME;

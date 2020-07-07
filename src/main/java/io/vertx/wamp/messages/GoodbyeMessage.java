@@ -30,4 +30,8 @@ public class GoodbyeMessage implements WAMPMessage {
   public List<?> getPayload() {
     return List.of(details, reason);
   }
+
+  public Uri getReason() {
+    return reason;
+  }
 }

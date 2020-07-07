@@ -49,7 +49,7 @@ public class Uri {
     return uri.equals(((Uri) obj).uri);
   }
 
-  class InvalidUriException extends IllegalArgumentException {
+  public class InvalidUriException extends IllegalArgumentException {
     InvalidUriException(String uri) {
       super(uri + "is not a valid URI");
     }

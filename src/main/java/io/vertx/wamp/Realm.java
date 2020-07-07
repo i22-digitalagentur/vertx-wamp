@@ -93,6 +93,11 @@ public class Realm {
     return uri.hashCode();
   }
 
+  @Override
+  public String toString() {
+    return uri.toString();
+  }
+
   static class Subscription {
     final Uri topic;
     final long id;

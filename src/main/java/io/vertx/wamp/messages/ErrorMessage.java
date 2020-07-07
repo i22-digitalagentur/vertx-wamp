@@ -63,4 +63,8 @@ public class ErrorMessage implements WAMPMessage {
     addArgsAndArgsKw(result, arguments, argumentsKw);
     return result;
   }
+
+  public Uri getError() {
+    return error;
+  }
 }

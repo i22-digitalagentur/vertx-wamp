@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
 
 /**
  * Represents a session to the server.
@@ -19,6 +20,7 @@ import java.util.function.Consumer;
  */
 public class WampSession {
   static AtomicLong lastSessionId = new AtomicLong(1);
+  private final Logger logger = Logger.getLogger(WampSession.class.getCanonicalName());
   private final MessageTransport messageTransport;
   private final SecurityPolicy.ClientInfo clientInfo;
   private final long sessionId;
@@ -60,8 +62,10 @@ public class WampSession {
 
   public void shutdown(Uri reason, Handler<AsyncResult<Void>> shutdownHandler) {
     if (state == State.ESTABLISHING) {
+      logger.info("Shutting down session during handshake: " + sessionId);
       abortConnection(reason, shutdownHandler);
     } else {
+      logger.info("Shutting down session: " + sessionId);
       this.shutdownHandler = shutdownHandler;
       this.state = State.SHUTTING_DOWN;
       messageTransport.sendMessage(MessageFactory.createGoodbyeMessage(reason));
@@ -69,6 +73,7 @@ public class WampSession {
   }
 
   private void handlePublish(PublishMessage msg) {
+    logger.finest("Publishing message: " + msg.toString());
     if (clientInfo != null) {
       if (!clientInfo.getPolicy().authorizePublish(clientInfo,
           realm.getUri(),
@@ -84,12 +89,11 @@ public class WampSession {
   }
 
   private void handleGoodbye(GoodbyeMessage msg) {
+    logger.fine(String.format("Session received GOODBYE: %d (%s)", sessionId, msg.toString()));
     if (this.state == State.ESTABLISHED) {
       this.state = State.CLOSING;
       messageTransport.sendMessage(MessageFactory.createGoodbyeMessage(Uri.GOODBYE_AND_OUT),
-          (_void) -> {
-            closeSession();
-          });
+          (_void) -> closeSession());
     } else {
       // we're already shutting down, this is a "Goodbye & Out" from the peer
       closeSession();
@@ -105,17 +109,25 @@ public class WampSession {
 
   private void closeSession() {
     this.state = State.CLOSED;
+    logger.finest("Session closed: " + sessionId);
     messageTransport.close();
   }
 
   private void handleMessage(WAMPMessage message) {
     WAMPMessage.Type messageType = message.getType();
+    logger.finest(String.format("Handling message: %d - %s", sessionId, messageType.toString()));
     if (!state.allowedToReceive().contains(messageType)) {
+      logger.warning(String.format("Protocol violation: %d - message %s not expected in %s state",
+          sessionId,
+          messageType.toString(),
+          state.toString()));
       abortConnection(Uri.PROTOCOL_VIOLATION);
+      return;
     }
     if (!messageHandlers.containsKey(messageType)) {
       // if there is no corresponding message handler, then this functionality
       // isn't implemented by us
+      logger.warning(String.format("Unsupported message type: %d - %s", sessionId, messageType.toString()));
       abortConnection(Uri.NO_SUCH_ROLE);
     }
     messageHandlers.get(messageType).accept(message);
@@ -123,13 +135,12 @@ public class WampSession {
 
   private void handleHello(HelloMessage message) {
     Optional<Realm> targetRealm = realmProvider.getRealms().stream()
-                                               .filter(r -> {
-                                                 return r.getUri().equals(message.getRealm());
-                                               })
+                                               .filter(r -> r.getUri().equals(message.getRealm()))
                                                .findFirst();
     if (targetRealm.isPresent()) {
       this.realm = targetRealm.get();
       this.state = State.ESTABLISHED;
+      logger.info(String.format("Received HELLO to Realm: %d - %s", sessionId, realm.toString()));
       sendWelcome();
     } else {
       abortConnection(Uri.NO_SUCH_REALM);
@@ -138,8 +149,12 @@ public class WampSession {
 
   private void handleSubscribe(SubscribeMessage message) {
     if (clientInfo != null && !clientInfo.getPolicy().authorizeSubscribe(clientInfo,
-          this.realm.getUri(),
-          message.getTopic())) {
+        this.realm.getUri(),
+        message.getTopic())) {
+      logger.warning(String.format("Denied subscription: %d - %s - %s",
+          sessionId,
+          realm.toString(),
+          message.getTopic()));
       messageTransport.sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.SUBSCRIBE,
           message.getId(),
           Map.of(),
@@ -148,6 +163,7 @@ public class WampSession {
     }
 
     // any event related to the subscription will be delivered via the message transport
+    logger.info(String.format("Subscription added: %d - %s - %s", sessionId, realm.toString(), message.getTopic()));
     long subscriptionId = realm.addSubscription(messageTransport::sendMessage, message.getTopic());
     messageTransport.sendMessage(MessageFactory.createSubscribedMessage(message.getId(), subscriptionId));
   }
@@ -170,7 +186,7 @@ public class WampSession {
     });
   }
 
-  enum State {
+  public enum State {
     ESTABLISHING(WAMPMessage.Type.HELLO),
     // clients can only receive data in the first version
     ESTABLISHED(WAMPMessage.Type.SUBSCRIBE, WAMPMessage.Type.GOODBYE),

@@ -5,18 +5,16 @@ import io.crossbar.autobahn.wamp.Session;
 import io.crossbar.autobahn.wamp.types.Subscription;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.junit5.Checkpoint;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
+import io.vertx.wamp.Realm;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPWebsocketServer;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collections;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -87,7 +85,7 @@ public class IntegrationTest {
       Session session = new Session();
       session.addOnJoinListener((session1, sessionDetails) -> {
         session.subscribe("hello.world", (o, eventDetails) -> {
-          testContext.verify(()-> {
+          testContext.verify(() -> {
             assertEquals(4321, eventDetails.publication);
           });
           testContext.completeNow();
@@ -111,7 +109,8 @@ public class IntegrationTest {
                                   VertxTestContext testContext,
                                   Handler<WAMPWebsocketServer> handler) {
     WAMPWebsocketServer server = WAMPWebsocketServer.create(vertx);
-    server.addRealm(new Uri("test.realm")).listen(8080).onComplete(res -> {
+    Realm realm = new Realm(new Uri("test.realm"));
+    server.addRealm(realm).listen(8080).onComplete(res -> {
       if (res.failed()) {
         testContext.failNow(res.cause());
       }

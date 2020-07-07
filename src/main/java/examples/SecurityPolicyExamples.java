@@ -25,6 +25,11 @@ import io.vertx.wamp.WAMPWebsocketServer;
 
 @Source
 public class SecurityPolicyExamples {
+  public void example1(Vertx vertx) {
+    WAMPWebsocketServer wampServer = WAMPWebsocketServer.create(vertx);
+    wampServer.withSecurityPolicy(new ExampleSecurityPolicy()).listen(8080);
+  }
+
   class ExampleClientInfo implements SecurityPolicy.ClientInfo {
     private final SecurityPolicy owner;
 
@@ -37,6 +42,7 @@ public class SecurityPolicyExamples {
       return owner;
     }
   }
+
   class AuthorizedClientInfo extends ExampleClientInfo {
     public final int accessLevel;
 
@@ -51,7 +57,8 @@ public class SecurityPolicyExamples {
     public ExampleClientInfo authenticateConnection(ServerWebSocket webSocket) {
       if (webSocket.headers().contains("API-Key", "foo", true)) {
         return new AuthorizedClientInfo(this, 1);
-      };
+      }
+      ;
       return new ExampleClientInfo(this);
     }
 
@@ -73,10 +80,5 @@ public class SecurityPolicyExamples {
     public boolean authorizePublish(ExampleClientInfo client, Uri realm, Uri topic) {
       return client instanceof AuthorizedClientInfo;
     }
-  }
-
-  public void example1(Vertx vertx) {
-    WAMPWebsocketServer wampServer = WAMPWebsocketServer.create(vertx);
-    wampServer.withSecurityPolicy(new ExampleSecurityPolicy()).listen(8080);
   }
 }
