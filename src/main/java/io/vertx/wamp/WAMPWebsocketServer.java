@@ -69,7 +69,7 @@ public class WAMPWebsocketServer implements RealmProvider, Closeable {
     if (securityPolicy != null) {
       clientInfo = securityPolicy.authenticateConnection(webSocket);
       if (clientInfo == null) {
-        webSocket.reject();
+        webSocket.reject(403);
         return;
       }
     }
@@ -99,8 +99,7 @@ public class WAMPWebsocketServer implements RealmProvider, Closeable {
     });
   }
 
-  public static class RealmExistsException extends RuntimeException {
-  }
+  public static class RealmExistsException extends RuntimeException {}
 
   class ConnectionsAlreadyEstablishedException extends RuntimeException {
     ConnectionsAlreadyEstablishedException() {
