@@ -4,6 +4,7 @@ import io.vertx.core.*;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.ServerWebSocket;
+import io.vertx.core.net.SocketAddress;
 import io.vertx.wamp.impl.WebsocketMessageTransport;
 
 import java.util.ArrayList;
@@ -53,8 +54,14 @@ public class WAMPWebsocketServer implements RealmProvider, Closeable {
     return this;
   }
 
+
   public Future<WAMPWebsocketServer> listen(int port) {
     return this.httpServer.listen(port).map(this);
+  }
+
+  public Future<WAMPWebsocketServer> listen(int port, String host) {
+    SocketAddress sa = SocketAddress.inetSocketAddress(port, host);
+    return this.httpServer.listen(sa).map(this);
   }
 
   private void handleWebsocketConnection(ServerWebSocket webSocket) {
