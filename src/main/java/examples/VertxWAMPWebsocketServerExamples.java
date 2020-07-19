@@ -18,6 +18,7 @@ package examples;
 
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
+import io.vertx.core.impl.logging.LoggerFactory;
 import io.vertx.docgen.Source;
 import io.vertx.wamp.Realm;
 import io.vertx.wamp.Uri;
@@ -27,44 +28,44 @@ import java.util.List;
 import java.util.Map;
 
 @Source
+@SuppressWarnings("java:S3740")
 public class VertxWAMPWebsocketServerExamples {
 
-  /**
-   * Example for accepting client connections and sending events
-   *
-   * @param vertx
-   */
-  public void example1(Vertx vertx) {
-    WAMPWebsocketServer wampServer = WAMPWebsocketServer.create(vertx);
-    Realm realm = new Realm(new Uri("example.realm"));
-    wampServer.addRealm(realm).listen(8080).onComplete(res -> {
-      if (res.succeeded()) {
-        res.result().getRealms().get(0).publishMessage(1,
-            new Uri("de.i22.topic"),
-            Map.of(),
-            List.of(),
-            Map.of());
-      }
-    });
-  }
-
-  /**
-   * Example for shutting down the server
-   *
-   * @param vertx
-   */
-  public void example2(Vertx vertx) {
-    WAMPWebsocketServer wampServer = WAMPWebsocketServer.create(vertx);
-    Realm realm = new Realm(new Uri("example.realm"));
-    wampServer.addRealm(realm).listen(8080).onComplete(res -> {
-      if (res.succeeded()) {
-        Promise promise = Promise.promise();
-        promise.future().onComplete(_res -> {
-          System.out.println("WAMP server started and shut down");
+    /**
+     * Example for accepting client connections and sending events
+     *
+     * @param vertx
+     */
+    public void example1(Vertx vertx) {
+        WAMPWebsocketServer wampServer = WAMPWebsocketServer.create(vertx);
+        Realm realm = new Realm(new Uri("example.realm"));
+        wampServer.addRealm(realm).listen(8080).onComplete(res -> {
+            if (res.succeeded()) {
+                res.result().getRealms().get(0).publishMessage(1,
+                        new Uri("de.i22.topic"),
+                        Map.of(),
+                        List.of(),
+                        Map.of());
+            }
         });
-        res.result().close(promise);
-      }
-    });
-  }
+    }
+
+    /**
+     * Example for shutting down the server
+     *
+     * @param vertx
+     */
+    public void example2(Vertx vertx) {
+        WAMPWebsocketServer wampServer = WAMPWebsocketServer.create(vertx);
+        Realm realm = new Realm(new Uri("example.realm"));
+        wampServer.addRealm(realm).listen(8080).onComplete(res -> {
+            if (res.succeeded()) {
+                Promise promise = Promise.promise();
+                promise.future().onComplete(result ->
+                        LoggerFactory.getLogger(this.getClass().getName()).info("WAMP server started and shut down"));
+                res.result().close(promise);
+            }
+        });
+    }
 
 }

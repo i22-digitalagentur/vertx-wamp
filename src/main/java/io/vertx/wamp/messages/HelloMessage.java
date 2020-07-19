@@ -9,25 +9,25 @@ import java.util.Map;
 
 public class HelloMessage implements WAMPMessage {
 
-  private final Uri realm;
-  private final Map<String, Object> details;
+    private final Uri realm;
+    private final Map<String, Object> details;
 
-  public HelloMessage(JsonArray args) {
-    this.realm = new Uri(args.getString(0));
-    this.details = args.getJsonObject(1).getMap();
-  }
+    public HelloMessage(JsonArray args) {
+        this.realm = new Uri(args.getString(0));
+        this.details = args.getJsonObject(1).getMap();
+    }
 
-  @Override
-  public Type getType() {
-    return Type.HELLO;
-  }
+    @Override
+    public Type getType() {
+        return Type.HELLO;
+    }
 
-  public Uri getRealm() {
-    return realm;
-  }
+    public Uri getRealm() {
+        return realm;
+    }
 
-  @Override
-  public List<Object> getPayload() {
-    return List.of(realm, details);
-  }
+    @Override
+    public List<Object> getPayload() {
+        return List.of(realm, details);
+    }
 }
