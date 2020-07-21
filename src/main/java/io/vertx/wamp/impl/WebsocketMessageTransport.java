@@ -11,6 +11,7 @@ import io.vertx.wamp.MessageTransport;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPMessage;
 
+import java.io.IOException;
 import java.util.function.Consumer;
 
 public class WebsocketMessageTransport implements MessageTransport {
@@ -37,7 +38,11 @@ public class WebsocketMessageTransport implements MessageTransport {
     }
 
     @Override
-    public void sendMessage(WAMPMessage message, Handler<AsyncResult<Void>> completionHandler) {
+    public void sendMessage(WAMPMessage message, Handler<AsyncResult<Void>> completionHandler) throws IOException {
+        // if the socket is already closed, don't try to send any message anymore
+        if (websocket.isClosed()) {
+            throw new IOException("Transport is closed");
+        }
         final String json = encodeJson(message);
         if (completionHandler != null) {
             websocket.writeTextMessage(json, completionHandler);
@@ -73,10 +78,16 @@ public class WebsocketMessageTransport implements MessageTransport {
 
     @Override
     public void close(Promise<Void> promise) {
-        websocket.close(voidResult -> {
+        if (websocket.isClosed()) {
             if (promise != null) {
                 promise.complete();
             }
-        });
+        } else {
+            websocket.close(voidResult -> {
+                if (promise != null) {
+                    promise.complete();
+                }
+            });
+        }
     }
 }

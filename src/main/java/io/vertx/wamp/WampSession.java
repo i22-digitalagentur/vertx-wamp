@@ -61,6 +61,32 @@ public class WampSession {
         return new WampSession(messageTransport, clientInfo, realmProvider);
     }
 
+    public void sendMessage(WAMPMessage message) {
+        trySendOrClose(message, null);
+    }
+
+    private void trySendOrClose(WAMPMessage message, Handler<AsyncResult<Void>> completeHandler) {
+        try {
+            if (completeHandler != null) {
+                messageTransport.sendMessage(message, completeHandler);
+            } else {
+                messageTransport.sendMessage(message);
+            }
+        } catch (Exception err) {
+            close();
+        }
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Session %d", sessionId);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        return (other instanceof WampSession && ((WampSession) other).sessionId == sessionId);
+    }
+
     public void shutdown(Uri reason, Handler<AsyncResult<Void>> shutdownHandler) {
         if (state == State.ESTABLISHING) {
             logger.log(Level.INFO, "Shutdown session during handshake: {0}", sessionId);
@@ -69,7 +95,11 @@ public class WampSession {
             logger.log(Level.INFO, "Shutting down session: {0}", sessionId);
             this.shutdownHandler = shutdownHandler;
             this.state = State.SHUTTING_DOWN;
-            messageTransport.sendMessage(MessageFactory.createGoodbyeMessage(reason));
+            try {
+                sendMessage(MessageFactory.createGoodbyeMessage(reason));
+            } catch (Exception err) {
+                shutdownHandler.handle(Future.failedFuture(err));
+            }
         }
     }
 
@@ -79,7 +109,7 @@ public class WampSession {
             if (!clientInfo.getPolicy().authorizePublish(clientInfo,
                     realm.getUri(),
                     msg.getTopic())) {
-                messageTransport.sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.PUBLISH,
+                sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.PUBLISH,
                         msg.getId(),
                         Map.of(),
                         Uri.NOT_AUTHORIZED));
@@ -93,11 +123,11 @@ public class WampSession {
         logger.log(Level.FINE, "Session received GOODBYE {0}: {1}", new Object[]{sessionId, msg});
         if (this.state == State.ESTABLISHED) {
             this.state = State.CLOSING;
-            messageTransport.sendMessage(MessageFactory.createGoodbyeMessage(Uri.GOODBYE_AND_OUT),
-                    voidArg -> closeSession());
+            trySendOrClose(MessageFactory.createGoodbyeMessage(Uri.GOODBYE_AND_OUT),
+                    voidArg -> close());
         } else {
             // we're already shutting down, this is a "Goodbye & Out" from the peer
-            closeSession();
+            close();
             if (shutdownHandler != null) {
                 shutdownHandler.handle(Future.succeededFuture());
             }
@@ -106,10 +136,13 @@ public class WampSession {
 
     private void handleAbort(AbortMessage msg) {
         logger.log(Level.INFO, "Received abort {0}: {1}", new Object[]{sessionId, msg.getReason()});
-        closeSession();
+        close();
     }
 
-    private void closeSession() {
+    void close() {
+        if (realm != null) {
+            realm.removeSession(this);
+        }
         this.state = State.CLOSED;
         logger.log(Level.FINE, "Session closed: {0}", sessionId);
         messageTransport.close();
@@ -159,7 +192,7 @@ public class WampSession {
                             sessionId,
                             realm,
                             message.getTopic()});
-            messageTransport.sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.SUBSCRIBE,
+            sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.SUBSCRIBE,
                     message.getId(),
                     Map.of(),
                     Uri.NOT_AUTHORIZED));
@@ -169,13 +202,13 @@ public class WampSession {
         // any event related to the subscription will be delivered via the message transport
         logger.log(Level.FINE, "Subscription added: {0} - {1} - {2}", new Object[]{sessionId, realm,
                 message.getTopic()});
-        long subscriptionId = realm.addSubscription(messageTransport::sendMessage, message.getTopic());
-        messageTransport.sendMessage(MessageFactory.createSubscribedMessage(message.getId(), subscriptionId));
+        long subscriptionId = realm.addSubscription(this, message.getTopic());
+        sendMessage(MessageFactory.createSubscribedMessage(message.getId(), subscriptionId));
     }
 
     private void sendWelcome() {
         WAMPMessage message = MessageFactory.createWelcomeMessage(sessionId);
-        messageTransport.sendMessage(message);
+        sendMessage(message);
     }
 
     private void abortConnection(Uri reason) {
@@ -183,8 +216,8 @@ public class WampSession {
     }
 
     private void abortConnection(Uri reason, Handler<AsyncResult<Void>> handler) {
-        messageTransport.sendMessage(new AbortMessage(Map.of(), reason), voidArg -> {
-            closeSession();
+        trySendOrClose(new AbortMessage(Map.of(), reason), voidArg -> {
+            close();
             if (handler != null) {
                 handler.handle(Future.succeededFuture());
             }
