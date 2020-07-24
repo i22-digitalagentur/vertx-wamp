@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
+import static io.vertx.wamp.test.server.TestUtils.buildMockClientInfo;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 
@@ -67,11 +68,43 @@ public class WampSessionTest {
             Mockito.verify(transport).sendMessage(captor.capture(), any());
             assertEquals(Uri.NO_SUCH_REALM, captor.getValue().getReason());
         }
+
+        @Test
+        @DisplayName("It denies join when security policy rejects hello")
+        void testSecurityPolicyRejection() {
+            SecurityPolicy.ClientInfo clientInfo = Mockito.mock(SecurityPolicy.ClientInfo.class);
+            SecurityPolicy securityPolicy = Mockito.spy(Mockito.mock(SecurityPolicy.class));
+            Mockito.when(securityPolicy.authorizeHello(clientInfo, testRealm.getUri())).thenReturn(false);
+            Mockito.when(clientInfo.getPolicy()).thenReturn(securityPolicy);
+            WampSession session = WampSession.establish(transport, clientInfo,
+                    createFakeRealmProvider(List.of(testRealm)));
+            transport.receiveHandler.accept(new HelloMessage(new JsonArray(List.of(testRealm.getUri(),
+                    Collections.EMPTY_MAP))));
+            ArgumentCaptor<AbortMessage> captor = ArgumentCaptor.forClass(AbortMessage.class);
+            Mockito.verify(transport).sendMessage(captor.capture(), any());
+            assertEquals(Uri.NOT_AUTHORIZED, captor.getValue().getReason());
+        }
+
+        @Test
+        @DisplayName("It accepts join when security policy permits hello")
+        void testSecurityPolicyAcceptance() {
+            SecurityPolicy.ClientInfo clientInfo = buildMockClientInfo();
+            Mockito.when(clientInfo.getPolicy().authorizeHello(clientInfo, testRealm.getUri())).thenReturn(true);
+            WampSession session = WampSession.establish(transport, clientInfo,
+                    createFakeRealmProvider(List.of(testRealm)));
+            transport.receiveHandler.accept(new HelloMessage(new JsonArray(List.of("test.realm",
+                    Collections.EMPTY_MAP))));
+            ArgumentCaptor<WelcomeMessage> captor = ArgumentCaptor.forClass(WelcomeMessage.class);
+            Mockito.verify(transport).sendMessage(captor.capture(), any());
+            assertTrue(captor.getValue().getSessionId() > 0);
+        }
     }
 
     @Nested
     @DisplayName("With established session")
     class EstablishedSessionTests {
+        // Testing happens as a black box by monitoring the messages going in
+        // and out of the transport. The session does not need to be referenced.
         WampSession session;
 
         @BeforeEach
@@ -111,7 +144,48 @@ public class WampSessionTest {
             ArgumentCaptor<SubscribedMessage> captor = ArgumentCaptor.forClass(SubscribedMessage.class);
             Mockito.verify(transport).sendMessage(captor.capture(), any());
             assertEquals(5432, captor.getValue().getId());
-            assertTrue(captor.getValue().getId() > 0);
+            assertTrue(captor.getValue().getSubscription() > 0);
+        }
+
+        @Nested
+        @DisplayName("With security policy")
+        class EstablishedSessionWithSecurityPolicyTests {
+            SecurityPolicy.ClientInfo clientInfo = buildMockClientInfo();
+
+            @BeforeEach
+            void injectClientInfo() {
+                ReflectionTestUtils.setField(session, "clientInfo", clientInfo);
+            }
+
+            @Test
+            @DisplayName("It checks publish requests against security policy")
+            void testPublishSecurityPolicyRejection() {
+                Uri topic = new Uri("my.topic");
+                testRealm.addSubscription(session, topic);
+
+                Mockito.when(clientInfo.getPolicy().authorizePublish(clientInfo, testRealm.getUri(), topic)).thenReturn(false);
+                transport.receiveHandler.accept(new PublishMessage(new JsonArray(List.of(5432, Collections.EMPTY_MAP,
+                        topic.toString(),
+                        Collections.emptyList(), Collections.emptyMap()))));
+                ArgumentCaptor<ErrorMessage> captor = ArgumentCaptor.forClass(ErrorMessage.class);
+                Mockito.verify(transport).sendMessage(captor.capture(), any());
+                assertEquals(Uri.NOT_AUTHORIZED, captor.getValue().getError());
+            }
+
+            @Test
+            @DisplayName("It forwards publish requests to the realm")
+            void testPublishSecurityPolicyAcceptance() {
+                Realm spiedRealm = Mockito.spy(testRealm);
+                ReflectionTestUtils.setField(session, "realm", spiedRealm);
+                Uri topic = new Uri("my.topic");
+                spiedRealm.addSubscription(session, topic);
+                Mockito.when(clientInfo.getPolicy().authorizePublish(clientInfo, testRealm.getUri(), topic)).thenReturn(true);
+                PublishMessage message = new PublishMessage(new JsonArray(List.of(5432, Collections.EMPTY_MAP,
+                        topic.toString(),
+                        Collections.emptyList(), Collections.emptyMap())));
+                transport.receiveHandler.accept(message);
+                Mockito.verify(spiedRealm).publishMessage(message);
+            }
         }
     }
 

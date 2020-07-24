@@ -20,10 +20,10 @@ public class PublishMessage implements WAMPMessage {
 
     public PublishMessage(JsonArray args) {
         this.id = args.getLong(0);
-        this.options = args.getJsonObject(2).getMap();
-        this.topic = new Uri(args.getString(3));
-        this.arguments = args.size() > 3 ? args.getJsonArray(4).getList() : null;
-        this.argumentsKw = args.size() > 4 ? args.getJsonObject(5).getMap() : null;
+        this.options = args.getJsonObject(1).getMap();
+        this.topic = new Uri(args.getString(2));
+        this.arguments = args.size() > 3 ? args.getJsonArray(3).getList() : null;
+        this.argumentsKw = args.size() > 4 ? args.getJsonObject(4).getMap() : null;
     }
 
     @Override

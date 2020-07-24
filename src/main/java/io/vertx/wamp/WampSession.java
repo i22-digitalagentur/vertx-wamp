@@ -32,6 +32,7 @@ public class WampSession {
     private final Map<WAMPMessage.Type, Consumer<WAMPMessage>> messageHandlers = Map.of(
             WAMPMessage.Type.HELLO, (WAMPMessage msg) -> handleHello((HelloMessage) msg),
             WAMPMessage.Type.SUBSCRIBE, (WAMPMessage msg) -> handleSubscribe((SubscribeMessage) msg),
+            WAMPMessage.Type.UNSUBSCRIBE, (WAMPMessage msg) -> handleUnsubscribe((UnsubscribeMessage) msg),
             WAMPMessage.Type.PUBLISH, (WAMPMessage msg) -> handlePublish((PublishMessage) msg),
             WAMPMessage.Type.ABORT, (WAMPMessage msg) -> handleAbort((AbortMessage) msg),
             WAMPMessage.Type.GOODBYE, (WAMPMessage msg) -> handleGoodbye((GoodbyeMessage) msg)
@@ -75,6 +76,10 @@ public class WampSession {
         } catch (Exception err) {
             close();
         }
+    }
+
+    public SecurityPolicy.ClientInfo getClientInfo() {
+        return clientInfo;
     }
 
     @Override
@@ -174,10 +179,14 @@ public class WampSession {
                 .filter(r -> r.getUri().equals(message.getRealm()))
                 .findFirst();
         if (targetRealm.isPresent()) {
-            this.realm = targetRealm.get();
-            this.state = State.ESTABLISHED;
-            logger.log(Level.FINE, "Received HELLO to Realm {0} - {1}", new Object[]{realm, sessionId});
-            sendWelcome();
+            if (clientInfo != null && !clientInfo.getPolicy().authorizeHello(clientInfo, message.getRealm())) {
+                abortConnection(Uri.NOT_AUTHORIZED);
+            } else {
+                this.realm = targetRealm.get();
+                this.state = State.ESTABLISHED;
+                logger.log(Level.FINE, "Received HELLO to Realm {0} - {1}", new Object[]{realm, sessionId});
+                sendWelcome();
+            }
         } else {
             abortConnection(Uri.NO_SUCH_REALM);
         }
@@ -206,6 +215,11 @@ public class WampSession {
         sendMessage(MessageFactory.createSubscribedMessage(message.getId(), subscriptionId));
     }
 
+    private void handleUnsubscribe(UnsubscribeMessage message) {
+        realm.removeSubscription(this, message.getSubscription());
+        sendMessage(MessageFactory.createUnsubscribedMessage(message.getId()));
+    }
+
     private void sendWelcome() {
         WAMPMessage message = MessageFactory.createWelcomeMessage(sessionId);
         sendMessage(message);
@@ -228,7 +242,8 @@ public class WampSession {
         // when establishing the session, wait for a HELLO from the client
         ESTABLISHING(WAMPMessage.Type.HELLO),
         // clients can only receive data in the first version
-        ESTABLISHED(WAMPMessage.Type.SUBSCRIBE, WAMPMessage.Type.GOODBYE),
+        ESTABLISHED(WAMPMessage.Type.SUBSCRIBE, WAMPMessage.Type.PUBLISH, WAMPMessage.Type.UNSUBSCRIBE,
+                WAMPMessage.Type.GOODBYE),
         CLOSING(), // received goodbye, not expecting any more messages
         SHUTTING_DOWN(WAMPMessage.Type.GOODBYE), // sent goodbye, waiting for ack
         CLOSED();
