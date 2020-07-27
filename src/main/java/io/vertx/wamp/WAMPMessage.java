@@ -3,7 +3,7 @@ package io.vertx.wamp;
 import java.util.List;
 
 public interface WAMPMessage {
-    static long MAX_ID = 9007199254740991L; // 2^53-1
+    long MAX_ID = 9007199254740991L; // 2^53-1
 
     Type getType();
 
@@ -12,7 +12,7 @@ public interface WAMPMessage {
     // maps etc according to the WAMP specification
     // in Java, this would be Integer, Float, String, Map<String, Object>,
     // List<Object> (where Object is one of the other types
-    public List<Object> getPayload();
+    List<Object> getPayload();
 
     // only contains Broker/PubSub functionality for now
     // Dealer / RPC still TBD
@@ -32,7 +32,7 @@ public interface WAMPMessage {
 
         private final int messageCode;
 
-        private Type(int messageCode) {
+        Type(int messageCode) {
             this.messageCode = messageCode;
         }
 

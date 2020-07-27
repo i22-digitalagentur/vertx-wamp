@@ -46,6 +46,10 @@ public class MessageFactory {
         return new AbortMessage(Map.of(), reason);
     }
 
+    static WAMPMessage createUnsubscribedMessage(long requestId) {
+        return new UnsubscribedMessage(requestId);
+    }
+
     static WAMPMessage createErrorMessage(WAMPMessage.Type messageType,
                                           long requestId,
                                           Map<String, Object> details,

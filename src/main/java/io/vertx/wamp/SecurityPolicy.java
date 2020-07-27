@@ -1,6 +1,7 @@
 package io.vertx.wamp;
 
 import io.vertx.core.http.ServerWebSocket;
+import io.vertx.wamp.messages.EventMessage;
 
 /*
  As per section 13.3 of the specification:
@@ -25,6 +26,13 @@ public interface SecurityPolicy<T extends SecurityPolicy.ClientInfo> {
      * Later on, advanced profile wampcra or ticket (JWT) could be added
      */
     boolean authorizeHello(T client, Uri realm);
+
+    /*
+     * Allows filtering individual events being sent even if a client has
+     * a subscription on a topic. Specialized use case that might be handy
+     * for privacy-related, testing or other purposes.
+     */
+    boolean authorizeEvent(T client, Uri topic, EventMessage message);
 
     /*
      * Authorize a subscription request to a given pattern

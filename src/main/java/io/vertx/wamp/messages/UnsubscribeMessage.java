@@ -14,6 +14,14 @@ public class UnsubscribeMessage implements WAMPMessage {
         this.subscription = args.getLong(1);
     }
 
+    public long getId() {
+        return id;
+    }
+
+    public long getSubscription() {
+        return subscription;
+    }
+
     @Override
     public Type getType() {
         return Type.SUBSCRIBE;

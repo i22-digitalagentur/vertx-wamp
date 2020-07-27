@@ -22,6 +22,7 @@ import io.vertx.docgen.Source;
 import io.vertx.wamp.SecurityPolicy;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPWebsocketServer;
+import io.vertx.wamp.messages.EventMessage;
 
 @Source
 @SuppressWarnings("java:S3740")
@@ -67,6 +68,11 @@ public class SecurityPolicyExamples {
         public boolean authorizeHello(ExampleClientInfo client, Uri realm) {
             return client instanceof AuthorizedClientInfo ||
                     realm.toString().equalsIgnoreCase("client1Realm");
+        }
+
+        @Override
+        public boolean authorizeEvent(ExampleClientInfo client, Uri topic, EventMessage message) {
+            return true;
         }
 
         // allow subscriptions to a specific topic only

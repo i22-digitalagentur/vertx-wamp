@@ -1,5 +1,6 @@
 package io.vertx.wamp;
 
+import io.vertx.wamp.messages.EventMessage;
 import io.vertx.wamp.messages.PublishMessage;
 
 import java.util.*;
@@ -18,11 +19,12 @@ public class Realm {
 
     public void publishMessage(PublishMessage msg) {
         getSubscriptions(msg.getTopic()).forEach(subscription ->
-                subscription.consumer.sendMessage(MessageFactory.createEvent(subscription.id,
-                        msg.getId(),
-                        msg.getOptions(),
-                        msg.getArguments(),
-                        msg.getArgumentsKw())));
+                deliverEventMessage(subscription,
+                        MessageFactory.createEvent(subscription.id,
+                                msg.getId(),
+                                msg.getOptions(),
+                                msg.getArguments(),
+                                msg.getArgumentsKw())));
     }
 
     public void publishMessage(long id,
@@ -30,13 +32,26 @@ public class Realm {
                                Map<String, Object> options,
                                List<Object> arguments,
                                Map<String, Object> argumentsKw) {
-        getSubscriptions(topic).forEach(subscription ->
-                subscription.consumer.sendMessage(MessageFactory.createEvent(
-                        subscription.id,
-                        id,
-                        options,
-                        arguments,
-                        argumentsKw)));
+        getSubscriptions(topic).forEach(subscription -> {
+            deliverEventMessage(subscription,
+                    MessageFactory.createEvent(
+                            subscription.id,
+                            id,
+                            options,
+                            arguments,
+                            argumentsKw));
+        });
+    }
+
+    private void deliverEventMessage(Subscription subscription, EventMessage message) {
+        if (isPublishAuthorized(subscription, message)) {
+            subscription.consumer.sendMessage(message);
+        }
+    }
+
+    private boolean isPublishAuthorized(Subscription subscription, EventMessage message) {
+        SecurityPolicy.ClientInfo clientInfo = subscription.consumer.getClientInfo();
+        return clientInfo == null || clientInfo.getPolicy().authorizeEvent(clientInfo, subscription.topic, message);
     }
 
     public Uri getUri() {
@@ -60,11 +75,12 @@ public class Realm {
         this.subscriptions.removeIf(s -> s.consumer == session);
     }
 
-    public synchronized void removeSubscription(long subscriptionId) {
+    // pass in the session so that adversarial or buggy clients can't unsubscribe s/o else
+    public synchronized void removeSubscription(WampSession session, long subscriptionId) {
         Iterator<Subscription> it = this.subscriptions.iterator();
         while (it.hasNext()) {
             Subscription s = it.next();
-            if (s.id == subscriptionId) {
+            if (s.id == subscriptionId && s.consumer == session) {
                 it.remove();
                 return;
             }
@@ -74,7 +90,7 @@ public class Realm {
     private long generateSubscriptionId() {
         // as stupid & simple as possible for now
         while (true) {
-            long retVal = this.sessionIdGenerator.nextInt();
+            long retVal = this.sessionIdGenerator.nextInt(Integer.MAX_VALUE);
             if (subscriptions.stream().noneMatch(
                     subscription -> subscription.id == retVal)) {
                 return retVal;
