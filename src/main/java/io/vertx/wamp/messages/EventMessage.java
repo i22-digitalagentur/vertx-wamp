@@ -11,15 +11,15 @@ import static io.vertx.wamp.messages.Util.addArgsAndArgsKw;
 public class EventMessage implements WAMPMessage {
     private final long subscriptionId;
     private final long publicationId;
-    private final Map<String, ?> details;
-    private final List<?> arguments;
-    private final Map<String, ?> argumentsKw;
+    private final Map<String, Object> details;
+    private final List<Object> arguments;
+    private final Map<String, Object> argumentsKw;
 
     public EventMessage(long subscriptionId,
                         long publicationId,
-                        Map<String, ?> details,
-                        List<?> arguments,
-                        Map<String, ?> argumentsKw) {
+                        Map<String, Object> details,
+                        List<Object> arguments,
+                        Map<String, Object> argumentsKw) {
         this.subscriptionId = subscriptionId;
         this.publicationId = publicationId;
         this.details = details;
@@ -40,5 +40,25 @@ public class EventMessage implements WAMPMessage {
         res.add(details);
         addArgsAndArgsKw(res, arguments, argumentsKw);
         return res;
+    }
+
+    public long getSubscriptionId() {
+        return subscriptionId;
+    }
+
+    public long getPublicationId() {
+        return publicationId;
+    }
+
+    public Map<String, Object> getDetails() {
+        return details;
+    }
+
+    public List<Object> getArguments() {
+        return arguments;
+    }
+
+    public Map<String, Object> getArgumentsKw() {
+        return argumentsKw;
     }
 }
