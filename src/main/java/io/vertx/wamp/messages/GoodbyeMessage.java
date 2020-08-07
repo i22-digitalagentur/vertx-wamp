@@ -1,6 +1,7 @@
 package io.vertx.wamp.messages;
 
 import io.vertx.core.json.JsonArray;
+import io.vertx.wamp.MessageDecoder;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPMessage;
 
@@ -16,9 +17,9 @@ public class GoodbyeMessage implements WAMPMessage {
         this.reason = reason;
     }
 
-    public GoodbyeMessage(JsonArray args) {
-        this.details = args.getJsonObject(0).getMap();
-        this.reason = new Uri(args.getString(1));
+    public <T> GoodbyeMessage(T data, MessageDecoder<?, T> decoder) {
+        this.details = decoder.getMap(data,0);
+        this.reason = new Uri(decoder.getString(data, 1));
     }
 
     @Override

@@ -36,13 +36,16 @@ public interface WAMPMessage {
             this.messageCode = messageCode;
         }
 
-        static public Type findByCode(int code) {
+        static public Type findByCode(Integer code) {
+            if (code == null) {
+                throw new WAMPProtocolException("No message type in message");
+            }
             for (Type v : values()) {
                 if (v.messageCode == code) {
                     return v;
                 }
             }
-            return null;
+            throw new WAMPProtocolException("Unknown message type");
         }
 
         public int getMessageCode() {

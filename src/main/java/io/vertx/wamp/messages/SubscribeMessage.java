@@ -1,6 +1,7 @@
 package io.vertx.wamp.messages;
 
 import io.vertx.core.json.JsonArray;
+import io.vertx.wamp.MessageDecoder;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPMessage;
 
@@ -12,10 +13,16 @@ public class SubscribeMessage implements WAMPMessage {
     private final Map<String, Object> options;
     private final Uri topic;
 
-    public SubscribeMessage(JsonArray args) {
-        this.id = args.getLong(0);
-        this.options = args.getJsonObject(1).getMap();
-        this.topic = new Uri(args.getString(2));
+    public SubscribeMessage(Long id, Map<String, Object> options, Uri topic) {
+        this.id = id;
+        this.options = options;
+        this.topic = topic;
+    }
+
+    public <T> SubscribeMessage(T data, MessageDecoder<?, T> decoder) {
+        this.id = decoder.getLong(data, 0);
+        this.options = decoder.getMap(data, 1);
+        this.topic = new Uri(decoder.getString(data, 2));
     }
 
     @Override
