@@ -8,19 +8,19 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class UriTest {
-    @Test
-    @DisplayName("It accepts valid URIs as constructor argument")
-    void testConstructorValidUri() {
-        assertDoesNotThrow(() -> {
-            new Uri("valid.uri123");
-        });
-    }
+  @Test
+  @DisplayName("It accepts valid URIs as constructor argument")
+  void testConstructorValidUri() {
+    assertDoesNotThrow(() -> {
+      new Uri("valid.uri123");
+    });
+  }
 
-    @Test
-    @DisplayName("It rejects URIs with spaces")
-    void testUriWithSpaceError() {
-        assertThrows(Uri.InvalidUriException.class, () -> {
-            new Uri("foo bar");
-        });
-    }
+  @Test
+  @DisplayName("It rejects URIs with spaces")
+  void testUriWithSpaceError() {
+    assertThrows(Uri.InvalidUriException.class, () -> {
+      new Uri("foo bar");
+    });
+  }
 }
