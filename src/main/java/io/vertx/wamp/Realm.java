@@ -4,6 +4,7 @@ import io.vertx.wamp.messages.EventMessage;
 import io.vertx.wamp.messages.PublishMessage;
 
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 // the realm manages all subscriptions and publications in it
@@ -58,9 +59,13 @@ public class Realm {
         return uri;
     }
 
-    private Stream<Subscription> getSubscriptions(Uri pattern) {
-        // pattern matching is part of the advanced profile only
-        return subscriptions.parallelStream().filter(subscription -> subscription.topic.equals(pattern));
+    private synchronized Collection<Subscription> getSubscriptions(Uri pattern) {
+        // a stream will raise an exception if the underlying data is changed while
+        // it's being used so make a temporary copy
+       return subscriptions.parallelStream()
+                           // pattern matching is part of the advanced profile only
+                           .filter(subscription -> subscription.topic.equals(pattern))
+                           .collect(Collectors.toUnmodifiableList());
     }
 
     public synchronized long addSubscription(WampSession session, Uri topic) {
