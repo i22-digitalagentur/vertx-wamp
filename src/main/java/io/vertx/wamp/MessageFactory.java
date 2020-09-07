@@ -26,6 +26,10 @@ public class MessageFactory {
                 return new GoodbyeMessage(message);
             case SUBSCRIBE:
                 return new SubscribeMessage(message);
+            case UNSUBSCRIBE:
+                return new UnsubscribeMessage(message);
+            case PUBLISH:
+                return new PublishMessage(message);
             default:
                 throw new IllegalArgumentException(String.format("Construction of %s not supported",
                         messageType.name()));
