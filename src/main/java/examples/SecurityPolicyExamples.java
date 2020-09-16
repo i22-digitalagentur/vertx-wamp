@@ -27,64 +27,64 @@ import io.vertx.wamp.messages.EventMessage;
 @Source
 @SuppressWarnings("java:S3740")
 public class SecurityPolicyExamples {
-    public void example1(Vertx vertx) {
-        WAMPWebsocketServer wampServer = WAMPWebsocketServer.create(vertx);
-        wampServer.withSecurityPolicy(new ExampleSecurityPolicy()).listen(8080);
+  public void example1(Vertx vertx) {
+    WAMPWebsocketServer wampServer = WAMPWebsocketServer.create(vertx);
+    wampServer.withSecurityPolicy(new ExampleSecurityPolicy()).listen(8080);
+  }
+
+  class ExampleClientInfo implements SecurityPolicy.ClientInfo {
+    private final SecurityPolicy owner;
+
+    ExampleClientInfo(SecurityPolicy owner) {
+      this.owner = owner;
     }
 
-    class ExampleClientInfo implements SecurityPolicy.ClientInfo {
-        private final SecurityPolicy owner;
+    @Override
+    public SecurityPolicy getPolicy() {
+      return owner;
+    }
+  }
 
-        ExampleClientInfo(SecurityPolicy owner) {
-            this.owner = owner;
-        }
+  class AuthorizedClientInfo extends ExampleClientInfo {
+    public final int accessLevel;
 
-        @Override
-        public SecurityPolicy getPolicy() {
-            return owner;
-        }
+    AuthorizedClientInfo(SecurityPolicy owner, int accessLevel) {
+      super(owner);
+      this.accessLevel = accessLevel;
+    }
+  }
+
+  class ExampleSecurityPolicy implements SecurityPolicy<ExampleClientInfo> {
+    @Override
+    public ExampleClientInfo authenticateConnection(ServerWebSocket webSocket) {
+      if (webSocket.headers().contains("API-Key", "foo", true)) {
+        return new AuthorizedClientInfo(this, 1);
+      }
+      return new ExampleClientInfo(this);
     }
 
-    class AuthorizedClientInfo extends ExampleClientInfo {
-        public final int accessLevel;
-
-        AuthorizedClientInfo(SecurityPolicy owner, int accessLevel) {
-            super(owner);
-            this.accessLevel = accessLevel;
-        }
+    // suppose there is a "public" realm and one where only special clients may connect
+    @Override
+    public boolean authorizeHello(ExampleClientInfo client, Uri realm) {
+      return client instanceof AuthorizedClientInfo ||
+             realm.toString().equalsIgnoreCase("client1Realm");
     }
 
-    class ExampleSecurityPolicy implements SecurityPolicy<ExampleClientInfo> {
-        @Override
-        public ExampleClientInfo authenticateConnection(ServerWebSocket webSocket) {
-            if (webSocket.headers().contains("API-Key", "foo", true)) {
-                return new AuthorizedClientInfo(this, 1);
-            }
-            return new ExampleClientInfo(this);
-        }
-
-        // suppose there is a "public" realm and one where only special clients may connect
-        @Override
-        public boolean authorizeHello(ExampleClientInfo client, Uri realm) {
-            return client instanceof AuthorizedClientInfo ||
-                    realm.toString().equalsIgnoreCase("client1Realm");
-        }
-
-        @Override
-        public boolean authorizeEvent(ExampleClientInfo client, Uri topic, EventMessage message) {
-            return true;
-        }
-
-        // allow subscriptions to a specific topic only
-        @Override
-        public boolean authorizeSubscribe(ExampleClientInfo client, Uri realm, Uri subscribePattern) {
-            return subscribePattern.toString().equalsIgnoreCase("authorized.topic");
-        }
-
-        // guests are not allowed to publish
-        @Override
-        public boolean authorizePublish(ExampleClientInfo client, Uri realm, Uri topic) {
-            return client instanceof AuthorizedClientInfo;
-        }
+    @Override
+    public boolean authorizeEvent(ExampleClientInfo client, Uri topic, EventMessage message) {
+      return true;
     }
+
+    // allow subscriptions to a specific topic only
+    @Override
+    public boolean authorizeSubscribe(ExampleClientInfo client, Uri realm, Uri subscribePattern) {
+      return subscribePattern.toString().equalsIgnoreCase("authorized.topic");
+    }
+
+    // guests are not allowed to publish
+    @Override
+    public boolean authorizePublish(ExampleClientInfo client, Uri realm, Uri topic) {
+      return client instanceof AuthorizedClientInfo;
+    }
+  }
 }

@@ -1,6 +1,6 @@
 package io.vertx.wamp.messages;
 
-import io.vertx.core.json.JsonArray;
+import io.vertx.wamp.MessageDecoder;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPMessage;
 
@@ -8,35 +8,41 @@ import java.util.List;
 import java.util.Map;
 
 public class SubscribeMessage implements WAMPMessage {
-    private final long id;
-    private final Map<String, Object> options;
-    private final Uri topic;
+  private final long id;
+  private final Map<String, Object> options;
+  private final Uri topic;
 
-    public SubscribeMessage(JsonArray args) {
-        this.id = args.getLong(0);
-        this.options = args.getJsonObject(1).getMap();
-        this.topic = new Uri(args.getString(2));
-    }
+  public SubscribeMessage(Long id, Map<String, Object> options, Uri topic) {
+    this.id = id;
+    this.options = options;
+    this.topic = topic;
+  }
 
-    @Override
-    public Type getType() {
-        return Type.SUBSCRIBE;
-    }
+  public <T> SubscribeMessage(T data, MessageDecoder<?, T> decoder) {
+    this.id = decoder.getLong(data, 0);
+    this.options = decoder.getMap(data, 1);
+    this.topic = new Uri(decoder.getString(data, 2));
+  }
 
-    @Override
-    public List<Object> getPayload() {
-        return List.of(id, options, topic);
-    }
+  @Override
+  public Type getType() {
+    return Type.SUBSCRIBE;
+  }
 
-    public Map<String, Object> getOptions() {
-        return options;
-    }
+  @Override
+  public List<Object> getPayload() {
+    return List.of(id, options, topic);
+  }
 
-    public Uri getTopic() {
-        return topic;
-    }
+  public Map<String, Object> getOptions() {
+    return options;
+  }
 
-    public long getId() {
-        return id;
-    }
+  public Uri getTopic() {
+    return topic;
+  }
+
+  public long getId() {
+    return id;
+  }
 }

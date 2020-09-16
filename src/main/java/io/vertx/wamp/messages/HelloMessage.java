@@ -1,6 +1,6 @@
 package io.vertx.wamp.messages;
 
-import io.vertx.core.json.JsonArray;
+import io.vertx.wamp.MessageDecoder;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPMessage;
 
@@ -9,25 +9,30 @@ import java.util.Map;
 
 public class HelloMessage implements WAMPMessage {
 
-    private final Uri realm;
-    private final Map<String, Object> details;
+  private final Uri realm;
+  private final Map<String, Object> details;
 
-    public HelloMessage(JsonArray args) {
-        this.realm = new Uri(args.getString(0));
-        this.details = args.getJsonObject(1).getMap();
-    }
+  public HelloMessage(Uri realm, Map<String, Object> details) {
+    this.realm = realm;
+    this.details = details;
+  }
 
-    @Override
-    public Type getType() {
-        return Type.HELLO;
-    }
+  public <T> HelloMessage(T data, MessageDecoder<?, T> decoder) {
+    this.realm = new Uri(decoder.getString(data, 0));
+    this.details = decoder.getMap(data, 1);
+  }
 
-    public Uri getRealm() {
-        return realm;
-    }
+  @Override
+  public Type getType() {
+    return Type.HELLO;
+  }
 
-    @Override
-    public List<Object> getPayload() {
-        return List.of(realm, details);
-    }
+  public Uri getRealm() {
+    return realm;
+  }
+
+  @Override
+  public List<Object> getPayload() {
+    return List.of(realm, details);
+  }
 }

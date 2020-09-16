@@ -13,97 +13,97 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class WAMPWebsocketServer implements RealmProvider, Closeable {
-    public final static String USER_AGENT = "vertx-wamp-1.0";
+  public final static String USER_AGENT = "vertx-wamp-1.0";
 
-    private final HttpServer httpServer;
-    private final List<Realm> realms = new ArrayList<>();
-    private final List<WampSession> connections = new ArrayList<>();
+  private final HttpServer httpServer;
+  private final List<Realm> realms = new ArrayList<>();
+  private final List<WampSession> connections = new ArrayList<>();
+  @SuppressWarnings("java:S3740")
+  private SecurityPolicy securityPolicy;
+
+  protected WAMPWebsocketServer(Vertx vertx) {
+    HttpServerOptions options = new HttpServerOptions();
+    options.addWebSocketSubProtocol("wamp.2.json"); // according to spec
+    options.addWebSocketSubProtocol("wamp"); // listed on iana.org
+    httpServer = vertx.createHttpServer(options);
+    httpServer.webSocketHandler(this::handleWebsocketConnection);
+  }
+
+  public static WAMPWebsocketServer create(Vertx vertx) {
+    return new WAMPWebsocketServer(vertx);
+  }
+
+  @Override
+  public List<Realm> getRealms() {
+    return Collections.unmodifiableList(realms);
+  }
+
+  public WAMPWebsocketServer addRealm(Realm realm) {
+    if (this.realms.contains(realm)) {
+      throw new RealmExistsException();
+    }
+    this.realms.add(realm);
+    return this;
+  }
+
+  public synchronized WAMPWebsocketServer withSecurityPolicy(SecurityPolicy<?> securityPolicy) {
+    if (!this.connections.isEmpty()) {
+      throw new ConnectionsAlreadyEstablishedException();
+    }
+    this.securityPolicy = securityPolicy;
+    return this;
+  }
+
+
+  public Future<WAMPWebsocketServer> listen(int port) {
+    return this.httpServer.listen(port).map(this);
+  }
+
+  public Future<WAMPWebsocketServer> listen(int port, String host) {
+    SocketAddress sa = SocketAddress.inetSocketAddress(port, host);
+    return this.httpServer.listen(sa).map(this);
+  }
+
+  private void handleWebsocketConnection(ServerWebSocket webSocket) {
+    SecurityPolicy.ClientInfo clientInfo = null;
+    if (securityPolicy != null) {
+      clientInfo = securityPolicy.authenticateConnection(webSocket);
+      if (clientInfo == null) {
+        webSocket.reject(403);
+        return;
+      }
+    }
+    MessageTransport messageTransport = new WebsocketMessageTransport(webSocket);
+    WampSession session = WampSession.establish(messageTransport, clientInfo, this);
+    connections.add(session);
+    webSocket.closeHandler(voidResult ->
+        // Investigate whether this may clash with shutdown
+        connections.remove(session)
+    );
+    webSocket.accept();
+  }
+
+  public void close() {
+    close(null);
+  }
+
+  @Override
+  public void close(Promise<Void> promise) {
     @SuppressWarnings("java:S3740")
-    private SecurityPolicy securityPolicy;
+    List<Future> promises = connections.parallelStream().map(session -> {
+      Promise sessionPromise = Promise.promise();
+      session.shutdown(Uri.CLOSE_REALM, sessionPromise);
+      return sessionPromise.future();
+    }).collect(Collectors.toList());
+    CompositeFuture.all(promises).onComplete(result -> httpServer.close(promise));
+  }
 
-    protected WAMPWebsocketServer(Vertx vertx) {
-        HttpServerOptions options = new HttpServerOptions();
-        options.addWebSocketSubProtocol("wamp.2.json"); // according to spec
-        options.addWebSocketSubProtocol("wamp"); // listed on iana.org
-        httpServer = vertx.createHttpServer(options);
-        httpServer.webSocketHandler(this::handleWebsocketConnection);
+  public static class RealmExistsException extends RuntimeException {
+  }
+
+  static class ConnectionsAlreadyEstablishedException extends RuntimeException {
+    ConnectionsAlreadyEstablishedException() {
+      super("Cannot set a security policy after connections have already been established");
     }
-
-    public static WAMPWebsocketServer create(Vertx vertx) {
-        return new WAMPWebsocketServer(vertx);
-    }
-
-    @Override
-    public List<Realm> getRealms() {
-        return Collections.unmodifiableList(realms);
-    }
-
-    public WAMPWebsocketServer addRealm(Realm realm) {
-        if (this.realms.contains(realm)) {
-            throw new RealmExistsException();
-        }
-        this.realms.add(realm);
-        return this;
-    }
-
-    public synchronized WAMPWebsocketServer withSecurityPolicy(SecurityPolicy<?> securityPolicy) {
-        if (!this.connections.isEmpty()) {
-            throw new ConnectionsAlreadyEstablishedException();
-        }
-        this.securityPolicy = securityPolicy;
-        return this;
-    }
-
-
-    public Future<WAMPWebsocketServer> listen(int port) {
-        return this.httpServer.listen(port).map(this);
-    }
-
-    public Future<WAMPWebsocketServer> listen(int port, String host) {
-        SocketAddress sa = SocketAddress.inetSocketAddress(port, host);
-        return this.httpServer.listen(sa).map(this);
-    }
-
-    private void handleWebsocketConnection(ServerWebSocket webSocket) {
-        SecurityPolicy.ClientInfo clientInfo = null;
-        if (securityPolicy != null) {
-            clientInfo = securityPolicy.authenticateConnection(webSocket);
-            if (clientInfo == null) {
-                webSocket.reject(403);
-                return;
-            }
-        }
-        MessageTransport messageTransport = new WebsocketMessageTransport(webSocket);
-        WampSession session = WampSession.establish(messageTransport, clientInfo, this);
-        connections.add(session);
-        webSocket.closeHandler(voidResult ->
-                // Investigate whether this may clash with shutdown
-                connections.remove(session)
-        );
-        webSocket.accept();
-    }
-
-    public void close() {
-        close(null);
-    }
-
-    @Override
-    public void close(Promise<Void> promise) {
-        @SuppressWarnings("java:S3740")
-        List<Future> promises = connections.parallelStream().map(session -> {
-            Promise sessionPromise = Promise.promise();
-            session.shutdown(Uri.CLOSE_REALM, sessionPromise);
-            return sessionPromise.future();
-        }).collect(Collectors.toList());
-        CompositeFuture.all(promises).onComplete(result -> httpServer.close(promise));
-    }
-
-    public static class RealmExistsException extends RuntimeException {
-    }
-
-    static class ConnectionsAlreadyEstablishedException extends RuntimeException {
-        ConnectionsAlreadyEstablishedException() {
-            super("Cannot set a security policy after connections have already been established");
-        }
-    }
+  }
 }
