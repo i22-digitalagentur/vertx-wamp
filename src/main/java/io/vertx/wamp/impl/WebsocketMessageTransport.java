@@ -3,8 +3,8 @@ package io.vertx.wamp.impl;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.ServerWebSocket;
-import io.vertx.core.json.JsonArray;
 import io.vertx.wamp.MessageFactory;
 import io.vertx.wamp.MessageTransport;
 import io.vertx.wamp.Uri;
@@ -16,17 +16,37 @@ import java.util.function.Consumer;
 public class WebsocketMessageTransport implements MessageTransport {
   private final ServerWebSocket websocket;
   private final JsonMessageDecoder jsonDecoder = new JsonMessageDecoder();
+  private final MsgPackMessageDecoder msgPackDecoder = new MsgPackMessageDecoder();
+  private final JsonMessageEncoder jsonEncoder = new JsonMessageEncoder();
+  private final MsgPackMessageEncoder msgPackEncoder = new MsgPackMessageEncoder();
+
   private Consumer<WAMPMessage> messageConsumer = null;
   private Consumer<Uri> errorConsumer = null;
 
   public WebsocketMessageTransport(ServerWebSocket websocket) {
     this.websocket = websocket;
     websocket.textMessageHandler(this::onTextMessageReceived);
+    websocket.binaryMessageHandler(this::onBinaryMessageReceived);
   }
 
   private void onTextMessageReceived(String s) {
-    WAMPMessage message = MessageFactory.parseMessage(s, jsonDecoder);
-    dispatchMessage(message);
+    WAMPMessage message = null;
+    try {
+      message = MessageFactory.parseMessage(s, jsonDecoder);
+      dispatchMessage(message);
+    } catch (IOException e) {
+      errorConsumer.accept(Uri.PROTOCOL_VIOLATION);
+    }
+  }
+
+  private void onBinaryMessageReceived(Buffer data) {
+    WAMPMessage message = null;
+    try {
+      message = MessageFactory.parseMessage(data, msgPackDecoder);
+      dispatchMessage(message);
+    } catch (IOException e) {
+      errorConsumer.accept(Uri.PROTOCOL_VIOLATION);
+    }
   }
 
   private void dispatchMessage(WAMPMessage message) {
@@ -45,21 +65,21 @@ public class WebsocketMessageTransport implements MessageTransport {
     if (websocket.isClosed()) {
       throw new IOException("Transport is closed");
     }
-    final String json = encodeJson(message);
-    if (completionHandler != null) {
-      websocket.writeTextMessage(json, completionHandler);
+    if (websocket.subProtocol().equalsIgnoreCase("wamp.2.msgpack")) {
+      final Buffer buffer = msgPackEncoder.encode(message);
+      if (completionHandler != null) {
+        websocket.writeBinaryMessage(buffer, completionHandler);
+      } else {
+        websocket.writeBinaryMessage(buffer);
+      }
     } else {
-      websocket.writeTextMessage(json);
+      final String json = jsonEncoder.encode(message);
+      if (completionHandler != null) {
+        websocket.writeTextMessage(json, completionHandler);
+      } else {
+        websocket.writeTextMessage(json);
+      }
     }
-  }
-
-  private String encodeJson(WAMPMessage message) {
-    JsonArray encoded = new JsonArray();
-    encoded.add(message.getType().getMessageCode());
-    for (Object entry : message.getPayload()) {
-      encoded.add(entry);
-    }
-    return encoded.encode();
   }
 
   @Override

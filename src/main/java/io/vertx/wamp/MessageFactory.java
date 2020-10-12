@@ -2,6 +2,7 @@ package io.vertx.wamp;
 
 import io.vertx.wamp.messages.*;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +14,7 @@ public class MessageFactory {
   }
 
   // only supports messages part of the receiving / broker end
-  public static <I, O> WAMPMessage parseMessage(I message, MessageDecoder<I, O> messageDecoder) {
+  public static <I, O> WAMPMessage parseMessage(I message, MessageDecoder<I, O> messageDecoder) throws IOException {
     Map.Entry<WAMPMessage.Type, O> decoded = messageDecoder.parseMessage(message);
     switch (decoded.getKey()) {
       case HELLO:

@@ -2,6 +2,7 @@ package io.vertx.wamp.test.server;
 
 import io.crossbar.autobahn.wamp.Client;
 import io.crossbar.autobahn.wamp.Session;
+import io.crossbar.autobahn.wamp.transports.NettyWebSocket;
 import io.crossbar.autobahn.wamp.types.Subscription;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -88,8 +90,18 @@ class IntegrationTest {
   }
 
   @Test
-  @DisplayName("It allows clients to subscribe to and receive messages")
-  void testSubscribe(Vertx vertx, VertxTestContext testContext) {
+  @DisplayName("It allows clients to subscribe to and receive messages using JSON")
+  void testSubscribeJson(Vertx vertx, VertxTestContext testContext) {
+    testSubscribe(vertx, testContext, "wamp.2.json");
+  }
+
+  @Test
+  @DisplayName("It allows clients to subscribe to and receive messages using MsgPack")
+  void testSubscribeMsgPack(Vertx vertx, VertxTestContext testContext) {
+    testSubscribe(vertx, testContext, "wamp.2.msgpack");
+  }
+
+  private void testSubscribe(Vertx vertx, VertxTestContext testContext, String subProtocol) {
     startWithTestRealm(vertx, testContext, server -> {
       Session session = new Session();
       session.addOnJoinListener((session1, sessionDetails) -> {
@@ -110,7 +122,7 @@ class IntegrationTest {
           return true;
         });
       });
-      connectSessionOrFail(testContext, session);
+      connectSessionOrFail(testContext, session, subProtocol);
     });
   }
 
@@ -167,13 +179,23 @@ class IntegrationTest {
   }
 
   private Client createClient(Session session) {
-    return new Client(session,
-        String.format("ws://%s:%d/", LISTEN_HOST, LISTEN_PORT),
-        "test.realm");
+    return createClient(session, "wamp.2.msgpack");
+  }
+
+  private Client createClient(Session session, String subProtocol) {
+    NettyWebSocket webSocket = new NettyWebSocket(
+            String.format("ws://%s:%d/", LISTEN_HOST, LISTEN_PORT), List.of(subProtocol));
+    Client client = new Client(webSocket);
+    client.add(session, "test.realm");
+    return client;
   }
 
   private void connectSessionOrFail(VertxTestContext testContext, Session session) {
-    Client client = createClient(session);
+    connectSessionOrFail(testContext, session, "wamp.2.msgpack");
+  }
+
+  private void connectSessionOrFail(VertxTestContext testContext, Session session, String subProtocol) {
+    Client client = createClient(session, subProtocol);
     client.connect().handle((exitInfo, throwable) -> {
       if (throwable != null) {
         testContext.failNow(throwable);
