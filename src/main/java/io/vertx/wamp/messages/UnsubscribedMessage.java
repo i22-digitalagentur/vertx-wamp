@@ -1,10 +1,10 @@
 package io.vertx.wamp.messages;
 
 import io.vertx.wamp.WAMPMessage;
-
 import java.util.List;
 
 public class UnsubscribedMessage implements WAMPMessage {
+
   private final long requestId;
 
   public UnsubscribedMessage(long requestId) {

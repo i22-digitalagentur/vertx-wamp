@@ -1,16 +1,16 @@
 package io.vertx.wamp.messages;
 
+import static io.vertx.wamp.messages.Util.addArgsAndArgsKw;
+
 import io.vertx.core.json.JsonArray;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPMessage;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static io.vertx.wamp.messages.Util.addArgsAndArgsKw;
-
 public class ErrorMessage implements WAMPMessage {
+
   private final WAMPMessage.Type requestType;
   private final long id;
   private final Map<String, Object> details;
@@ -28,18 +28,18 @@ public class ErrorMessage implements WAMPMessage {
   }
 
   public ErrorMessage(WAMPMessage.Type requestType,
-                      long requestId,
-                      Map<String, Object> details,
-                      Uri error) {
+      long requestId,
+      Map<String, Object> details,
+      Uri error) {
     this(requestType, requestId, details, error, null, null);
   }
 
   public ErrorMessage(WAMPMessage.Type requestType,
-                      long requestId,
-                      Map<String, Object> details,
-                      Uri error,
-                      List<Object> arguments,
-                      Map<String, Object> argumentsKw) {
+      long requestId,
+      Map<String, Object> details,
+      Uri error,
+      List<Object> arguments,
+      Map<String, Object> argumentsKw) {
     this.requestType = requestType;
     this.id = requestId;
     this.details = details;

@@ -1,18 +1,22 @@
 package io.vertx.wamp;
 
-import io.vertx.core.*;
+import io.vertx.core.Closeable;
+import io.vertx.core.CompositeFuture;
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.ServerWebSocket;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.wamp.impl.WebsocketMessageTransport;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class WAMPWebsocketServer implements RealmProvider, Closeable {
+
   public final static String USER_AGENT = "vertx-wamp-1.0";
 
   private final HttpServer httpServer;
@@ -23,8 +27,8 @@ public class WAMPWebsocketServer implements RealmProvider, Closeable {
 
   protected WAMPWebsocketServer(Vertx vertx) {
     HttpServerOptions options = new HttpServerOptions();
-    options.addWebSocketSubProtocol("wamp.2.json"); // according to spec
-    options.addWebSocketSubProtocol("wamp"); // listed on iana.org
+    options.addWebSocketSubProtocol("wamp.2.json");
+    options.addWebSocketSubProtocol("wamp.2.msgpack");
     httpServer = vertx.createHttpServer(options);
     httpServer.webSocketHandler(this::handleWebsocketConnection);
   }
@@ -99,9 +103,11 @@ public class WAMPWebsocketServer implements RealmProvider, Closeable {
   }
 
   public static class RealmExistsException extends RuntimeException {
+
   }
 
   static class ConnectionsAlreadyEstablishedException extends RuntimeException {
+
     ConnectionsAlreadyEstablishedException() {
       super("Cannot set a security policy after connections have already been established");
     }

@@ -2,33 +2,33 @@ package io.vertx.wamp.messages;
 
 import io.vertx.wamp.MessageDecoder;
 import io.vertx.wamp.WAMPMessage;
-
 import java.util.List;
 
 public class UnsubscribeMessage implements WAMPMessage {
-    private final long id;
-    private final long subscription;
 
-    public <T> UnsubscribeMessage(T data, MessageDecoder<?, T> decoder) {
-        this.id = decoder.getLong(data, 0);
-        this.subscription = decoder.getLong(data, 1);
-    }
+  private final long id;
+  private final long subscription;
 
-    public long getId() {
-        return id;
-    }
+  public <T> UnsubscribeMessage(T data, MessageDecoder<?, T> decoder) {
+    this.id = decoder.getLong(data, 0);
+    this.subscription = decoder.getLong(data, 1);
+  }
 
-    public long getSubscription() {
-        return subscription;
-    }
+  public long getId() {
+    return id;
+  }
 
-    @Override
-    public Type getType() {
-        return Type.UNSUBSCRIBE;
-    }
+  public long getSubscription() {
+    return subscription;
+  }
 
-    @Override
-    public List<Object> getPayload() {
-        return List.of(id, subscription);
-    }
+  @Override
+  public Type getType() {
+    return Type.UNSUBSCRIBE;
+  }
+
+  @Override
+  public List<Object> getPayload() {
+    return List.of(id, subscription);
+  }
 }

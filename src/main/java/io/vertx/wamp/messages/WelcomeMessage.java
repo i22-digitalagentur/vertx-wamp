@@ -1,7 +1,6 @@
 package io.vertx.wamp.messages;
 
 import io.vertx.wamp.WAMPMessage;
-
 import java.util.List;
 import java.util.Map;
 

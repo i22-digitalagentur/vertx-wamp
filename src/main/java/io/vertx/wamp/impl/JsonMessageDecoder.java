@@ -5,12 +5,12 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.wamp.MessageDecoder;
 import io.vertx.wamp.WAMPMessage;
 import io.vertx.wamp.WAMPProtocolException;
-
 import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
 
 public class JsonMessageDecoder implements MessageDecoder<String, JsonArray> {
+
   public Map.Entry<WAMPMessage.Type, JsonArray> parseMessage(String message) {
     Object decoded = Json.decodeValue(message);
     if (!(decoded instanceof JsonArray) || ((JsonArray) decoded).size() == 0) {

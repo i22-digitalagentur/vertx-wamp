@@ -3,11 +3,11 @@ package io.vertx.wamp.messages;
 import io.vertx.wamp.MessageDecoder;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPMessage;
-
 import java.util.List;
 import java.util.Map;
 
 public class SubscribeMessage implements WAMPMessage {
+
   private final long id;
   private final Map<String, Object> options;
   private final Uri topic;

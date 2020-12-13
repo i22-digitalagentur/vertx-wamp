@@ -3,7 +3,6 @@ package io.vertx.wamp;
 import java.util.List;
 
 public interface WAMPMessage {
-  long MAX_ID = 9007199254740991L; // 2^53-1
 
   Type getType();
 

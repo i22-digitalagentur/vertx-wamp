@@ -2,6 +2,8 @@
 
 This component provides a Vert.x-based WAMP broker using the basic profile.
 
+It's very basic but does the job 😉
+
 Authorization can be handled by implementing the `io.vertx.wamp.SecurityPolicy`
 interface and setting it on your server.
 
@@ -15,17 +17,26 @@ needing to separately connect with a client.
 To start the server, instantiate it in your verticle like so
 
 ```kotlin
-val realm: Realm = Realm(Uri("com.example.wamp.realm"))
+val realm = Realm(Uri("com.example.wamp"))
 val wampServer = WAMPWebsocketServer.create(vertx)
 wampServer.addRealm(realm)
           .withSecurityPolicy(SecurityPolicy)
           .listen(8080, "127.0.0.1")
 ```
 
-## Running tests
+## Features
+ - JSON and MsgPack subprotocol support
+ - broker functionality (connect/publish/subscribe/unsubscribe)
+ - security mechanism to let the broker control who can connect, publish or subscribe to which topic
 
-Run all tests.
+## Roadmap
 
-```
-> mvn verify
+- RPC support
+
+## Development
+
+### Running tests
+
+```shell
+$ mvn verify
 ```

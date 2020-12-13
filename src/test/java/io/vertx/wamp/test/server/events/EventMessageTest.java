@@ -1,14 +1,14 @@
 package io.vertx.wamp.test.server.events;
 
-import io.vertx.wamp.messages.EventMessage;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import io.vertx.wamp.messages.EventMessage;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
 class EventMessageTest {
+
   @Test
   void testGetters() {
     EventMessage objectUnderTest = buildEventMessage();

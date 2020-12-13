@@ -1,16 +1,19 @@
 package io.vertx.wamp;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
 public interface MessageDecoder<I, O> {
+
   /**
-   * Parses a message from the input data. Depending on the implementation this might be strings, byte buffers etc.
+   * Parses a message from the input data. Depending on the implementation this might be strings,
+   * byte buffers etc.
    *
    * @param data the raw data
    * @return the parsed message, separated into message type and data
    */
-  Map.Entry<WAMPMessage.Type, O> parseMessage(I data);
+  Map.Entry<WAMPMessage.Type, O> parseMessage(I data) throws IOException;
 
   String getString(O data, int idx);
 

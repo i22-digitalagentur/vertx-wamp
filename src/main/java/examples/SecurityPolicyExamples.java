@@ -27,12 +27,14 @@ import io.vertx.wamp.messages.EventMessage;
 @Source
 @SuppressWarnings("java:S3740")
 public class SecurityPolicyExamples {
+
   public void example1(Vertx vertx) {
     WAMPWebsocketServer wampServer = WAMPWebsocketServer.create(vertx);
     wampServer.withSecurityPolicy(new ExampleSecurityPolicy()).listen(8080);
   }
 
   class ExampleClientInfo implements SecurityPolicy.ClientInfo {
+
     private final SecurityPolicy owner;
 
     ExampleClientInfo(SecurityPolicy owner) {
@@ -46,6 +48,7 @@ public class SecurityPolicyExamples {
   }
 
   class AuthorizedClientInfo extends ExampleClientInfo {
+
     public final int accessLevel;
 
     AuthorizedClientInfo(SecurityPolicy owner, int accessLevel) {
@@ -55,6 +58,7 @@ public class SecurityPolicyExamples {
   }
 
   class ExampleSecurityPolicy implements SecurityPolicy<ExampleClientInfo> {
+
     @Override
     public ExampleClientInfo authenticateConnection(ServerWebSocket webSocket) {
       if (webSocket.headers().contains("API-Key", "foo", true)) {
@@ -67,7 +71,7 @@ public class SecurityPolicyExamples {
     @Override
     public boolean authorizeHello(ExampleClientInfo client, Uri realm) {
       return client instanceof AuthorizedClientInfo ||
-             realm.toString().equalsIgnoreCase("client1Realm");
+          realm.toString().equalsIgnoreCase("client1Realm");
     }
 
     @Override

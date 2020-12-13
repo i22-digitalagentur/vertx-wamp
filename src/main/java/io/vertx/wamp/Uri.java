@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * Properly typed URI
  */
 public class Uri {
+
   public final static Uri INVALID_URI = new Uri("wamp.error.invalid_uri");
   public final static Uri NO_SUCH_PROCEDURE = new Uri("wamp.error.no_such_procedure");
   public final static Uri PROCEDURE_ALREADY_EXISTS = new Uri("wamp.error.procedure_already_exists");
@@ -50,6 +51,7 @@ public class Uri {
   }
 
   public static class InvalidUriException extends IllegalArgumentException {
+
     InvalidUriException(String uri) {
       super(uri + "is not a valid URI");
     }

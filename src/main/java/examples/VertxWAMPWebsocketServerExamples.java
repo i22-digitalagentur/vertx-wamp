@@ -23,7 +23,6 @@ import io.vertx.docgen.Source;
 import io.vertx.wamp.Realm;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPWebsocketServer;
-
 import java.util.List;
 import java.util.Map;
 
@@ -41,8 +40,7 @@ public class VertxWAMPWebsocketServerExamples {
     Realm realm = new Realm(new Uri("example.realm"));
     wampServer.addRealm(realm).listen(8080).onComplete(res -> {
       if (res.succeeded()) {
-        res.result().getRealms().get(0).publishMessage(1,
-            new Uri("de.i22.topic"),
+        res.result().getRealms().get(0).publishMessage(new Uri("de.i22.topic"),
             Map.of(),
             List.of(),
             Map.of());
@@ -62,7 +60,8 @@ public class VertxWAMPWebsocketServerExamples {
       if (res.succeeded()) {
         Promise promise = Promise.promise();
         promise.future().onComplete(result ->
-            LoggerFactory.getLogger(this.getClass().getName()).info("WAMP server started and shut down"));
+            LoggerFactory.getLogger(this.getClass().getName())
+                .info("WAMP server started and shut down"));
         res.result().close(promise);
       }
     });

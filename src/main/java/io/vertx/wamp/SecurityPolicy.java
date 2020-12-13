@@ -15,6 +15,7 @@ import io.vertx.wamp.messages.EventMessage;
  subsequent joins to a realm as well as subscribe or publish requests.
 */
 public interface SecurityPolicy<T extends SecurityPolicy.ClientInfo> {
+
   /*
    * @return null if authentication failed, a ClientInfo to be used for subsequent
    *         authorization otherwise
@@ -45,6 +46,7 @@ public interface SecurityPolicy<T extends SecurityPolicy.ClientInfo> {
   boolean authorizePublish(T client, Uri realm, Uri topic);
 
   interface ClientInfo {
+
     @SuppressWarnings("java:S3740")
     SecurityPolicy getPolicy();
   }

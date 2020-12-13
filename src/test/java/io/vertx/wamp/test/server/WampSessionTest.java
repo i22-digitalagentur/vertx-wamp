@@ -1,12 +1,34 @@
 package io.vertx.wamp.test.server;
 
+import static io.vertx.wamp.test.server.TestUtils.buildMockClientInfo;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.junit5.VertxExtension;
-import io.vertx.wamp.*;
-import io.vertx.wamp.messages.*;
+import io.vertx.wamp.MessageTransport;
+import io.vertx.wamp.Realm;
+import io.vertx.wamp.RealmProvider;
+import io.vertx.wamp.SecurityPolicy;
+import io.vertx.wamp.Uri;
+import io.vertx.wamp.WAMPMessage;
+import io.vertx.wamp.WampSession;
+import io.vertx.wamp.messages.AbortMessage;
+import io.vertx.wamp.messages.ErrorMessage;
+import io.vertx.wamp.messages.GoodbyeMessage;
+import io.vertx.wamp.messages.HelloMessage;
+import io.vertx.wamp.messages.PublishMessage;
+import io.vertx.wamp.messages.SubscribeMessage;
+import io.vertx.wamp.messages.SubscribedMessage;
+import io.vertx.wamp.messages.WelcomeMessage;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -18,16 +40,9 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.function.Consumer;
-
-import static io.vertx.wamp.test.server.TestUtils.buildMockClientInfo;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-
 @ExtendWith({VertxExtension.class, MockitoExtension.class})
 public class WampSessionTest {
+
   @Spy
   TestMessageTransport transport = new TestMessageTransport();
   Realm testRealm = new Realm(new Uri("test.realm"));
@@ -44,10 +59,12 @@ public class WampSessionTest {
   @Nested
   @DisplayName("Session handshake")
   class SessionHandshakeTests {
+
     @Test
     @DisplayName("It sends WELCOME after receiving HELLO via its transport")
     void testWelcomeAfterHello() {
-      WampSession session = WampSession.establish(transport, null, createFakeRealmProvider(List.of(testRealm)));
+      WampSession session = WampSession
+          .establish(transport, null, createFakeRealmProvider(List.of(testRealm)));
       assertNotNull(session);
       transport.receiveHandler.accept(new HelloMessage(testRealm.getUri(), Collections.EMPTY_MAP));
       ArgumentCaptor<WelcomeMessage> captor = ArgumentCaptor.forClass(WelcomeMessage.class);
@@ -58,9 +75,11 @@ public class WampSessionTest {
     @Test
     @DisplayName("It rejects HELLO messages with unknown realm")
     void testUnknownRealmHello() {
-      WampSession session = WampSession.establish(transport, null, createFakeRealmProvider(List.of(testRealm)));
+      WampSession session = WampSession
+          .establish(transport, null, createFakeRealmProvider(List.of(testRealm)));
       assertNotNull(session);
-      transport.receiveHandler.accept(new HelloMessage(new Uri("unknown.realm"), Collections.EMPTY_MAP));
+      transport.receiveHandler
+          .accept(new HelloMessage(new Uri("unknown.realm"), Collections.EMPTY_MAP));
       ArgumentCaptor<AbortMessage> captor = ArgumentCaptor.forClass(AbortMessage.class);
       Mockito.verify(transport).sendMessage(captor.capture(), any());
       assertEquals(Uri.NO_SUCH_REALM, captor.getValue().getReason());
@@ -85,7 +104,8 @@ public class WampSessionTest {
     @DisplayName("It accepts join when security policy permits hello")
     void testSecurityPolicyAcceptance() {
       SecurityPolicy.ClientInfo clientInfo = buildMockClientInfo();
-      Mockito.when(clientInfo.getPolicy().authorizeHello(clientInfo, testRealm.getUri())).thenReturn(true);
+      Mockito.when(clientInfo.getPolicy().authorizeHello(clientInfo, testRealm.getUri()))
+          .thenReturn(true);
       WampSession session = WampSession.establish(transport, clientInfo,
           createFakeRealmProvider(List.of(testRealm)));
       transport.receiveHandler.accept(new HelloMessage(testRealm.getUri(), Collections.EMPTY_MAP));
@@ -98,13 +118,15 @@ public class WampSessionTest {
   @Nested
   @DisplayName("With established session")
   class EstablishedSessionTests {
+
     // Testing happens as a black box by monitoring the messages going in
     // and out of the transport. The session does not need to be referenced.
     WampSession session;
 
     @BeforeEach
     void setupEstablishedSession() {
-      this.session = WampSession.establish(transport, null, createFakeRealmProvider(List.of(testRealm)));
+      this.session = WampSession
+          .establish(transport, null, createFakeRealmProvider(List.of(testRealm)));
       ReflectionTestUtils.setField(session, "state", WampSession.State.ESTABLISHED);
       ReflectionTestUtils.setField(session, "realm", testRealm);
     }
@@ -122,7 +144,8 @@ public class WampSessionTest {
     @Test
     @DisplayName("It terminates connections on GOODBYE")
     void testHandleGoodbye() {
-      transport.receiveHandler.accept(new GoodbyeMessage(Collections.EMPTY_MAP, Uri.SYSTEM_SHUTDOWN));
+      transport.receiveHandler
+          .accept(new GoodbyeMessage(Collections.EMPTY_MAP, Uri.SYSTEM_SHUTDOWN));
       ArgumentCaptor<GoodbyeMessage> captor = ArgumentCaptor.forClass(GoodbyeMessage.class);
       Mockito.verify(transport).sendMessage(captor.capture(), any());
       Mockito.verify(transport).close();
@@ -143,6 +166,7 @@ public class WampSessionTest {
     @Nested
     @DisplayName("With security policy")
     class EstablishedSessionWithSecurityPolicyTests {
+
       SecurityPolicy.ClientInfo clientInfo = buildMockClientInfo();
 
       @BeforeEach
@@ -156,7 +180,8 @@ public class WampSessionTest {
         Uri topic = new Uri("my.topic");
         testRealm.addSubscription(session, topic);
 
-        Mockito.when(clientInfo.getPolicy().authorizePublish(clientInfo, testRealm.getUri(), topic)).thenReturn(false);
+        Mockito.when(clientInfo.getPolicy().authorizePublish(clientInfo, testRealm.getUri(), topic))
+            .thenReturn(false);
         transport.receiveHandler.accept(new PublishMessage(5432l, Collections.EMPTY_MAP,
             topic,
             Collections.emptyList(), Collections.emptyMap()));
@@ -172,7 +197,8 @@ public class WampSessionTest {
         ReflectionTestUtils.setField(session, "realm", spiedRealm);
         Uri topic = new Uri("my.topic");
         spiedRealm.addSubscription(session, topic);
-        Mockito.when(clientInfo.getPolicy().authorizePublish(clientInfo, testRealm.getUri(), topic)).thenReturn(true);
+        Mockito.when(clientInfo.getPolicy().authorizePublish(clientInfo, testRealm.getUri(), topic))
+            .thenReturn(true);
         PublishMessage message = new PublishMessage(5432l, Collections.EMPTY_MAP,
             topic,
             Collections.emptyList(), Collections.emptyMap());
@@ -183,6 +209,7 @@ public class WampSessionTest {
   }
 
   private class TestMessageTransport implements MessageTransport {
+
     Consumer<WAMPMessage> receiveHandler;
     Consumer<Uri> errorHandler;
 

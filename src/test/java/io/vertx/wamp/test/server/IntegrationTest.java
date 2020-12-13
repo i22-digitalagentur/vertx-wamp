@@ -1,7 +1,13 @@
 package io.vertx.wamp.test.server;
 
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import io.crossbar.autobahn.wamp.Client;
 import io.crossbar.autobahn.wamp.Session;
+import io.crossbar.autobahn.wamp.transports.NettyWebSocket;
+import io.crossbar.autobahn.wamp.types.PublishOptions;
 import io.crossbar.autobahn.wamp.types.Subscription;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -10,17 +16,18 @@ import io.vertx.junit5.VertxTestContext;
 import io.vertx.wamp.Realm;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPWebsocketServer;
+import io.vertx.wamp.util.IDGenerator;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.util.Collections;
-
-import static org.junit.jupiter.api.Assertions.*;
-
 @ExtendWith(VertxExtension.class)
 class IntegrationTest {
+
   static final int LISTEN_PORT = 8899;
   static final String LISTEN_HOST = "127.0.0.1";
 
@@ -88,29 +95,63 @@ class IntegrationTest {
   }
 
   @Test
-  @DisplayName("It allows clients to subscribe to and receive messages")
-  void testSubscribe(Vertx vertx, VertxTestContext testContext) {
+  @DisplayName("It allows clients to subscribe to and receive messages using JSON")
+  void testSubscribeJson(Vertx vertx, VertxTestContext testContext) {
+    testSubscribe(vertx, testContext, "wamp.2.json");
+  }
+
+  @Test
+  @DisplayName("It allows clients to subscribe to and receive messages using MsgPack")
+  void testSubscribeMsgPack(Vertx vertx, VertxTestContext testContext) {
+    testSubscribe(vertx, testContext, "wamp.2.msgpack");
+  }
+
+  @Test
+  @DisplayName("It allows clients to publish messages using MsgPack")
+  void testPublishMsgPack(Vertx vertx, VertxTestContext testContext) {
+    testPublish(vertx, testContext, "wamp.2.msgpack");
+  }
+
+  private void testPublish(Vertx vertx, VertxTestContext testContext, String subProtocol) {
+    startWithTestRealm(vertx, testContext, server -> {
+      Session session = new Session();
+      session.addOnJoinListener((session1, sessionDetails) -> {
+        session.publish("hello.world", Collections.emptyList(), Map
+            .of("Hello", "world"), new PublishOptions(true, false))
+            .whenComplete((publication, throwable) -> {
+              testContext.verify(() -> {
+                assertNull(throwable);
+                assertTrue(publication.publication > 0);
+              });
+              testContext.completeNow();
+            });
+      });
+      connectSessionOrFail(testContext, session, subProtocol);
+    });
+  }
+
+  private void testSubscribe(Vertx vertx, VertxTestContext testContext, String subProtocol) {
     startWithTestRealm(vertx, testContext, server -> {
       Session session = new Session();
       session.addOnJoinListener((session1, sessionDetails) -> {
         session.subscribe("hello.world", (o, eventDetails) -> {
           testContext.verify(() -> {
-            assertEquals(4321, eventDetails.publication);
+            assertTrue((eventDetails.publication >= 1) &&
+                (eventDetails.publication <= IDGenerator.MAX_ID));
           });
           testContext.completeNow();
         }).thenApply((Subscription subscription) -> {
           testContext.verify(() -> {
             assertTrue(subscription.isActive());
           });
-          testRealm.publishMessage(4321,
-              new Uri("hello.world"),
+          testRealm.publishMessage(new Uri("hello.world"),
               Collections.emptyMap(),
               null,
               null);
           return true;
         });
       });
-      connectSessionOrFail(testContext, session);
+      connectSessionOrFail(testContext, session, subProtocol);
     });
   }
 
@@ -136,8 +177,7 @@ class IntegrationTest {
                 testContext.verify(() -> {
                   assertTrue(sub2.isActive());
                 });
-                testRealm.publishMessage(4321,
-                    new Uri("hello.world"),
+                testRealm.publishMessage(new Uri("hello.world"),
                     Collections.emptyMap(),
                     null,
                     null);
@@ -155,8 +195,8 @@ class IntegrationTest {
   }
 
   private void startWithTestRealm(Vertx vertx,
-                                  VertxTestContext testContext,
-                                  Handler<WAMPWebsocketServer> handler) {
+      VertxTestContext testContext,
+      Handler<WAMPWebsocketServer> handler) {
     WAMPWebsocketServer server = WAMPWebsocketServer.create(vertx);
     server.addRealm(testRealm).listen(LISTEN_PORT, LISTEN_HOST).onComplete(res -> {
       if (res.failed()) {
@@ -167,13 +207,24 @@ class IntegrationTest {
   }
 
   private Client createClient(Session session) {
-    return new Client(session,
-        String.format("ws://%s:%d/", LISTEN_HOST, LISTEN_PORT),
-        "test.realm");
+    return createClient(session, "wamp.2.msgpack");
+  }
+
+  private Client createClient(Session session, String subProtocol) {
+    NettyWebSocket webSocket = new NettyWebSocket(
+        String.format("ws://%s:%d/", LISTEN_HOST, LISTEN_PORT), List.of(subProtocol));
+    Client client = new Client(webSocket);
+    client.add(session, "test.realm");
+    return client;
   }
 
   private void connectSessionOrFail(VertxTestContext testContext, Session session) {
-    Client client = createClient(session);
+    connectSessionOrFail(testContext, session, "wamp.2.msgpack");
+  }
+
+  private void connectSessionOrFail(VertxTestContext testContext, Session session,
+      String subProtocol) {
+    Client client = createClient(session, subProtocol);
     client.connect().handle((exitInfo, throwable) -> {
       if (throwable != null) {
         testContext.failNow(throwable);

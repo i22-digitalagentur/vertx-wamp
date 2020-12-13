@@ -3,11 +3,11 @@ package io.vertx.wamp.messages;
 import io.vertx.wamp.MessageDecoder;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPMessage;
-
 import java.util.List;
 import java.util.Map;
 
 public class GoodbyeMessage implements WAMPMessage {
+
   private final Uri reason;
   private final Map<String, Object> details;
 

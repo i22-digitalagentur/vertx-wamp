@@ -1,19 +1,30 @@
 package io.vertx.wamp;
 
-import io.vertx.wamp.messages.*;
-
+import io.vertx.wamp.messages.AbortMessage;
+import io.vertx.wamp.messages.ErrorMessage;
+import io.vertx.wamp.messages.EventMessage;
+import io.vertx.wamp.messages.GoodbyeMessage;
+import io.vertx.wamp.messages.HelloMessage;
+import io.vertx.wamp.messages.PublishMessage;
+import io.vertx.wamp.messages.PublishedMessage;
+import io.vertx.wamp.messages.SubscribeMessage;
+import io.vertx.wamp.messages.SubscribedMessage;
+import io.vertx.wamp.messages.UnsubscribeMessage;
+import io.vertx.wamp.messages.UnsubscribedMessage;
+import io.vertx.wamp.messages.WelcomeMessage;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-// construct message objects. For decoding data currently fixed on JSON
-// TODO: extract JSON stuff into separate codec functionality
 public class MessageFactory {
+
   private MessageFactory() {
   }
 
   // only supports messages part of the receiving / broker end
-  public static <I, O> WAMPMessage parseMessage(I message, MessageDecoder<I, O> messageDecoder) {
+  public static <I, O> WAMPMessage parseMessage(I message, MessageDecoder<I, O> messageDecoder)
+      throws IOException {
     Map.Entry<WAMPMessage.Type, O> decoded = messageDecoder.parseMessage(message);
     switch (decoded.getKey()) {
       case HELLO:
@@ -36,7 +47,8 @@ public class MessageFactory {
 
   static WAMPMessage createWelcomeMessage(long sessionId) {
     final Map<String, Object> roles = Map.of("broker", Collections.emptyMap());
-    final Map<String, Object> details = Map.of("roles", roles, "agent", WAMPWebsocketServer.USER_AGENT);
+    final Map<String, Object> details = Map
+        .of("roles", roles, "agent", WAMPWebsocketServer.USER_AGENT);
     return new WelcomeMessage(sessionId, details);
   }
 
@@ -52,10 +64,14 @@ public class MessageFactory {
     return new UnsubscribedMessage(requestId);
   }
 
+  static WAMPMessage createPublishedMessage(long requestId, long publicationId) {
+    return new PublishedMessage(requestId, publicationId);
+  }
+
   static WAMPMessage createErrorMessage(WAMPMessage.Type messageType,
-                                        long requestId,
-                                        Map<String, Object> details,
-                                        Uri error) {
+      long requestId,
+      Map<String, Object> details,
+      Uri error) {
     return new ErrorMessage(messageType, requestId, details, error);
   }
 
@@ -64,10 +80,10 @@ public class MessageFactory {
   }
 
   public static EventMessage createEvent(long subscriptionId,
-                                         long publicationId,
-                                         Map<String, Object> details,
-                                         List<Object> arguments,
-                                         Map<String, Object> argumentsKw) {
+      long publicationId,
+      Map<String, Object> details,
+      List<Object> arguments,
+      Map<String, Object> argumentsKw) {
     return new EventMessage(subscriptionId,
         publicationId,
         details,
