@@ -50,6 +50,10 @@ public class MessageFactory {
         return new UnsubscribedMessage(requestId);
     }
 
+    static WAMPMessage createPublishedMessage(long requestId, long publicationId) {
+        return new PublishedMessage(requestId, publicationId);
+    }
+
     static WAMPMessage createErrorMessage(WAMPMessage.Type messageType,
                                           long requestId,
                                           Map<String, Object> details,

@@ -1,9 +1,15 @@
 package io.vertx.wamp;
 
+import io.vertx.core.CompositeFuture;
+import io.vertx.core.Future;
 import io.vertx.wamp.messages.EventMessage;
 import io.vertx.wamp.messages.PublishMessage;
-
-import java.util.*;
+import io.vertx.wamp.util.IDGenerator;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 // the realm manages all subscriptions and publications in it
@@ -11,41 +17,39 @@ public class Realm {
     private final Uri uri;
 
     private final List<Subscription> subscriptions = new ArrayList<>();
-    private final Random sessionIdGenerator = new Random();
+    private final IDGenerator subscriptionIdGenerator = new IDGenerator();
+    private final IDGenerator publicationIdGenerator = new IDGenerator();
 
     public Realm(Uri uri) {
         this.uri = uri;
     }
 
-    public void publishMessage(PublishMessage msg) {
-        getSubscriptions(msg.getTopic()).forEach(subscription ->
-                deliverEventMessage(subscription,
-                        MessageFactory.createEvent(subscription.id,
-                                msg.getId(),
-                                msg.getOptions(),
-                                msg.getArguments(),
-                                msg.getArgumentsKw())));
+    public Future<Long> publishMessage(PublishMessage msg) {
+        return publishMessage(msg.getTopic(), msg.getOptions(), msg.getArguments(),
+            msg.getArgumentsKw());
     }
 
-    public void publishMessage(long id,
-                               Uri topic,
+    public Future<Long> publishMessage(Uri topic,
                                Map<String, Object> options,
                                List<Object> arguments,
                                Map<String, Object> argumentsKw) {
-        getSubscriptions(topic).forEach(subscription -> {
-            deliverEventMessage(subscription,
-                    MessageFactory.createEvent(
-                            subscription.id,
-                            id,
-                            options,
-                            arguments,
-                            argumentsKw));
-        });
+        Long publicationId = publicationIdGenerator.nextValue();
+        List<Future> publishFutures = getSubscriptions(topic).parallelStream()
+            .map(subscription -> deliverEventMessage(subscription,
+                MessageFactory.createEvent(
+                    subscription.id,
+                    publicationId,
+                    options,
+                    arguments,
+                    argumentsKw))).collect(Collectors.toList());
+        return CompositeFuture.all(publishFutures).map(publicationId);
     }
 
-    private void deliverEventMessage(Subscription subscription, EventMessage message) {
+    private Future<Void> deliverEventMessage(Subscription subscription, EventMessage message) {
         if (isPublishAuthorized(subscription, message)) {
-            subscription.consumer.sendMessage(message);
+            return subscription.consumer.sendMessage(message);
+        } else {
+            return Future.failedFuture("Unauthorized to publish this message");
         }
     }
 
@@ -94,7 +98,7 @@ public class Realm {
     private long generateSubscriptionId() {
         // as stupid & simple as possible for now
         while (true) {
-            long retVal = this.sessionIdGenerator.nextInt(Integer.MAX_VALUE);
+            long retVal = this.subscriptionIdGenerator.nextValue();
             if (subscriptions.stream().noneMatch(
                     subscription -> subscription.id == retVal)) {
                 return retVal;

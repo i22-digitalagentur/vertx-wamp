@@ -3,13 +3,18 @@ package io.vertx.wamp;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
-import io.vertx.wamp.messages.*;
-
+import io.vertx.core.Promise;
+import io.vertx.wamp.messages.AbortMessage;
+import io.vertx.wamp.messages.GoodbyeMessage;
+import io.vertx.wamp.messages.HelloMessage;
+import io.vertx.wamp.messages.PublishMessage;
+import io.vertx.wamp.messages.SubscribeMessage;
+import io.vertx.wamp.messages.UnsubscribeMessage;
+import io.vertx.wamp.util.IDGenerator;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -20,7 +25,8 @@ import java.util.logging.Logger;
  * closed once the session terminates.
  */
 public class WampSession {
-    static AtomicLong lastSessionId = new AtomicLong(1);
+    static IDGenerator sessionIdGenerator = new IDGenerator();
+
     private final Logger logger = Logger.getLogger(WampSession.class.getCanonicalName());
     private final MessageTransport messageTransport;
     private final SecurityPolicy.ClientInfo clientInfo;
@@ -49,10 +55,10 @@ public class WampSession {
         this.realmProvider = realmProvider;
         this.state = State.ESTABLISHING;
 
-        // TODO: assumes for now that there'll never be 9007199254740991 sessions
+        // TODO: assumes for now that there'll never be 2^53 sessions
         // before restarting the app. Could probably be a free list of ~2^16 or so
         // ids because we'll probably never have more connections than that
-        this.sessionId = lastSessionId.addAndGet(1);
+        this.sessionId = sessionIdGenerator.nextValue();
     }
 
     // constructor function
@@ -62,8 +68,10 @@ public class WampSession {
         return new WampSession(messageTransport, clientInfo, realmProvider);
     }
 
-    public void sendMessage(WAMPMessage message) {
-        trySendOrClose(message, null);
+    public Future<Void> sendMessage(WAMPMessage message) {
+        Promise<Void> promise = Promise.promise();
+        trySendOrClose(message, promise);
+        return promise.future();
     }
 
     private void trySendOrClose(WAMPMessage message, Handler<AsyncResult<Void>> completeHandler) {
@@ -110,17 +118,16 @@ public class WampSession {
 
     private void handlePublish(PublishMessage msg) {
         logger.log(Level.FINEST, "Publishing message: {0}", msg);
-        if (clientInfo != null) {
-            if (!clientInfo.getPolicy().authorizePublish(clientInfo,
-                    realm.getUri(),
-                    msg.getTopic())) {
-                sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.PUBLISH,
-                        msg.getId(),
-                        Map.of(),
-                        Uri.NOT_AUTHORIZED));
-            } else {
-                realm.publishMessage(msg);
-            }
+        if (clientInfo != null && !clientInfo.getPolicy()
+            .authorizePublish(clientInfo, realm.getUri(), msg.getTopic())) {
+            sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.PUBLISH,
+                msg.getId(),
+                Map.of(),
+                Uri.NOT_AUTHORIZED));
+        } else {
+            realm.publishMessage(msg).onSuccess(publicationId -> {
+                sendMessage(MessageFactory.createPublishedMessage(msg.getId(), publicationId));
+            });
         }
     }
 

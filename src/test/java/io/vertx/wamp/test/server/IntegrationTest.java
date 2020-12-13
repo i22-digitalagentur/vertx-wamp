@@ -1,8 +1,13 @@
 package io.vertx.wamp.test.server;
 
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import io.crossbar.autobahn.wamp.Client;
 import io.crossbar.autobahn.wamp.Session;
 import io.crossbar.autobahn.wamp.transports.NettyWebSocket;
+import io.crossbar.autobahn.wamp.types.PublishOptions;
 import io.crossbar.autobahn.wamp.types.Subscription;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -11,15 +16,14 @@ import io.vertx.junit5.VertxTestContext;
 import io.vertx.wamp.Realm;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPWebsocketServer;
+import io.vertx.wamp.util.IDGenerator;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-
-import java.util.Collections;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(VertxExtension.class)
 class IntegrationTest {
@@ -101,21 +105,44 @@ class IntegrationTest {
         testSubscribe(vertx, testContext, "wamp.2.msgpack");
     }
 
+    @Test
+    @DisplayName("It allows clients to publish messages using MsgPack")
+    void testPublishMsgPack(Vertx vertx, VertxTestContext testContext) {
+        testPublish(vertx, testContext, "wamp.2.msgpack");
+    }
+
+    private void testPublish(Vertx vertx, VertxTestContext testContext, String subProtocol) {
+        startWithTestRealm(vertx, testContext, server -> {
+            Session session = new Session();
+            session.addOnJoinListener((session1, sessionDetails) -> {
+                session.publish("hello.world", Collections.emptyList(), Map
+                    .of("Hello", "world"), new PublishOptions(true, false)).whenComplete((publication, throwable) -> {
+                    testContext.verify(() -> {
+                        assertNull(throwable);
+                        assertTrue(publication.publication > 0);
+                    });
+                    testContext.completeNow();
+                });
+            });
+            connectSessionOrFail(testContext, session, subProtocol);
+        });
+    }
+
     private void testSubscribe(Vertx vertx, VertxTestContext testContext, String subProtocol) {
         startWithTestRealm(vertx, testContext, server -> {
             Session session = new Session();
             session.addOnJoinListener((session1, sessionDetails) -> {
                 session.subscribe("hello.world", (o, eventDetails) -> {
                     testContext.verify(() -> {
-                        assertEquals(4321, eventDetails.publication);
+                        assertTrue((eventDetails.publication >= 1) &&
+                            (eventDetails.publication <= IDGenerator.MAX_ID));
                     });
                     testContext.completeNow();
                 }).thenApply((Subscription subscription) -> {
                     testContext.verify(() -> {
                         assertTrue(subscription.isActive());
                     });
-                    testRealm.publishMessage(4321,
-                            new Uri("hello.world"),
+                    testRealm.publishMessage(new Uri("hello.world"),
                             Collections.emptyMap(),
                             null,
                             null);
@@ -148,11 +175,10 @@ class IntegrationTest {
                                 testContext.verify(() -> {
                                     assertTrue(sub2.isActive());
                                 });
-                                testRealm.publishMessage(4321,
-                                        new Uri("hello.world"),
-                                        Collections.emptyMap(),
-                                        null,
-                                        null);
+                                testRealm.publishMessage(new Uri("hello.world"),
+                                    Collections.emptyMap(),
+                                    null,
+                                    null);
                                 return true;
                             });
                         });
