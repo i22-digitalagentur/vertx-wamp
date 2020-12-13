@@ -29,9 +29,10 @@ wampServer.addRealm(realm)
  - broker functionality (connect/publish/subscribe/unsubscribe)
  - security mechanism to let the broker control who can connect, publish or subscribe to which topic
 
-## Roadmap
+## Roadmap / Desirable features
 
-- RPC support
+1. RPC support
+2. Advanced Profile / Authentication
 
 ## Development
 
@@ -40,3 +41,8 @@ wampServer.addRealm(realm)
 ```shell
 $ mvn verify
 ```
+
+### Contributing
+
+Contributions of all kinds are welcome! If you spot an error, please report
+it via a Github issue.
