@@ -1,7 +1,5 @@
 package io.vertx.wamp;
 
-import com.fasterxml.jackson.annotation.JsonValue;
-
 /*
  * Properly typed URI
  */
@@ -32,7 +30,6 @@ public class Uri {
   }
 
   @Override
-  @JsonValue
   public String toString() {
     return this.value;
   }
