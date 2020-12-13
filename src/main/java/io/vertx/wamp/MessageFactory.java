@@ -7,11 +7,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-// construct message objects. For decoding data currently fixed on JSON
-// TODO: extract JSON stuff into separate codec functionality
 public class MessageFactory {
-    private MessageFactory() {
-    }
+    private MessageFactory() {}
 
     // only supports messages part of the receiving / broker end
     public static <I, O> WAMPMessage parseMessage(I message, MessageDecoder<I, O> messageDecoder) throws IOException {

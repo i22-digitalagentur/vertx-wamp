@@ -23,9 +23,8 @@ public class WAMPWebsocketServer implements RealmProvider, Closeable {
 
     protected WAMPWebsocketServer(Vertx vertx) {
         HttpServerOptions options = new HttpServerOptions();
-        options.addWebSocketSubProtocol("wamp.2.json"); // according to spec
+        options.addWebSocketSubProtocol("wamp.2.json");
         options.addWebSocketSubProtocol("wamp.2.msgpack");
-        options.addWebSocketSubProtocol("wamp"); // listed on iana.org
         httpServer = vertx.createHttpServer(options);
         httpServer.webSocketHandler(this::handleWebsocketConnection);
     }
