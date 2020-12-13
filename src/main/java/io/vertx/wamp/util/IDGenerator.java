@@ -3,9 +3,10 @@ package io.vertx.wamp.util;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class IDGenerator {
+
   public static long MAX_ID = 9007199254740991L; // 2^53-1
 
-  private AtomicLong currentValue;
+  private final AtomicLong currentValue;
 
   public IDGenerator() {
     this.currentValue = new AtomicLong(1);
