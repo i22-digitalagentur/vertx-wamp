@@ -159,6 +159,9 @@ public class WampSession {
     this.state = State.CLOSED;
     logger.log(Level.FINE, "Session closed: {0}", sessionId);
     messageTransport.close();
+    if (clientInfo != null) {
+      clientInfo.getPolicy().releaseConnection(clientInfo);
+    }
   }
 
   private void handleMessage(WAMPMessage message) {

@@ -23,6 +23,12 @@ public interface SecurityPolicy<T extends SecurityPolicy.ClientInfo> {
   T authenticateConnection(ServerWebSocket webSocket);
 
   /*
+   * Indicate that a connection has been terminated to enable cleanup of any
+   * associated resources inside the policy
+   */
+  void releaseConnection(T client);
+
+  /*
    * Called to verify that a connected client is permitted to join a realm
    * Later on, advanced profile wampcra or ticket (JWT) could be added
    */
