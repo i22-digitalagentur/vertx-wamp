@@ -67,6 +67,11 @@ public class SecurityPolicyExamples {
       return new ExampleClientInfo(this);
     }
 
+    @Override
+    public void releaseConnection(ExampleClientInfo client) {
+      // nothing to clean up
+    }
+
     // suppose there is a "public" realm and one where only special clients may connect
     @Override
     public boolean authorizeHello(ExampleClientInfo client, Uri realm) {

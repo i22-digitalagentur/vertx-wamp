@@ -1,9 +1,5 @@
 package io.vertx.wamp.test.server;
 
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import io.crossbar.autobahn.wamp.Client;
 import io.crossbar.autobahn.wamp.Session;
 import io.crossbar.autobahn.wamp.transports.NettyWebSocket;
@@ -11,19 +7,25 @@ import io.crossbar.autobahn.wamp.types.PublishOptions;
 import io.crossbar.autobahn.wamp.types.Subscription;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.junit5.Checkpoint;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import io.vertx.wamp.Realm;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPWebsocketServer;
 import io.vertx.wamp.util.IDGenerator;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(VertxExtension.class)
 class IntegrationTest {
@@ -43,6 +45,7 @@ class IntegrationTest {
   void testStartWAMPServer(Vertx vertx, VertxTestContext testContext) {
     WAMPWebsocketServer server = WAMPWebsocketServer.create(vertx);
     server.addRealm(testRealm);
+    Checkpoint checkpoint = testContext.checkpoint();
     server.listen(LISTEN_PORT, LISTEN_HOST).onComplete(res -> {
       if (res.failed()) {
         testContext.failNow(res.cause());
@@ -51,7 +54,7 @@ class IntegrationTest {
       session.addOnConnectListener(sess -> {
         if (sess.isConnected()) {
           sess.leave();
-          testContext.completeNow();
+          checkpoint.flag();
         } else {
           testContext.failNow(new RuntimeException("WAMP not connected"));
         }
@@ -63,6 +66,7 @@ class IntegrationTest {
   @Test
   @DisplayName("It allows clients to join an existing realm")
   void testRealmJoin(Vertx vertx, VertxTestContext testContext) {
+    Checkpoint checkpoint = testContext.checkpoint();
     startWithTestRealm(vertx, testContext, server -> {
       Session session = new Session();
       session.addOnJoinListener((session1, sessionDetails) -> {
@@ -72,7 +76,7 @@ class IntegrationTest {
           // but details are mostly empty: bug in client library?
           // assertEquals("test.realm", sessionDetails.realm);
         });
-        testContext.completeNow();
+        checkpoint.flag();
       });
       connectSessionOrFail(testContext, session);
     });
@@ -82,37 +86,23 @@ class IntegrationTest {
   @DisplayName("It prevents clients from joining an unknown realm")
   void testRealmNotExists(Vertx vertx, VertxTestContext testContext) {
     WAMPWebsocketServer server = WAMPWebsocketServer.create(vertx);
+    Checkpoint checkpoint = testContext.checkpoint();
     server.listen(LISTEN_PORT, LISTEN_HOST).onComplete(testContext.succeeding(res -> {
       Session session = new Session();
       session.addOnJoinListener((_session, sessionDetails) -> {
         testContext.failNow(new RuntimeException("Managed to join a non-existing realm"));
       });
       session.addOnDisconnectListener((_sess, clean) -> {
-        testContext.completeNow();
+        checkpoint.flag();
       });
       connectSessionOrFail(testContext, session);
     }));
   }
 
-  @Test
-  @DisplayName("It allows clients to subscribe to and receive messages using JSON")
-  void testSubscribeJson(Vertx vertx, VertxTestContext testContext) {
-    testSubscribe(vertx, testContext, "wamp.2.json");
-  }
-
-  @Test
-  @DisplayName("It allows clients to subscribe to and receive messages using MsgPack")
-  void testSubscribeMsgPack(Vertx vertx, VertxTestContext testContext) {
-    testSubscribe(vertx, testContext, "wamp.2.msgpack");
-  }
-
-  @Test
-  @DisplayName("It allows clients to publish messages using MsgPack")
-  void testPublishMsgPack(Vertx vertx, VertxTestContext testContext) {
-    testPublish(vertx, testContext, "wamp.2.msgpack");
-  }
-
-  private void testPublish(Vertx vertx, VertxTestContext testContext, String subProtocol) {
+  @ParameterizedTest(name = "It allows clients to publish messages using {0}")
+  @ValueSource(strings = {"wamp.2.json", "wamp.2.msgpack"})
+  void testPublish(String subProtocol, Vertx vertx, VertxTestContext testContext) {
+    Checkpoint checkpoint = testContext.checkpoint();
     startWithTestRealm(vertx, testContext, server -> {
       Session session = new Session();
       session.addOnJoinListener((session1, sessionDetails) -> {
@@ -123,14 +113,17 @@ class IntegrationTest {
                 assertNull(throwable);
                 assertTrue(publication.publication > 0);
               });
-              testContext.completeNow();
+              checkpoint.flag();
             });
       });
       connectSessionOrFail(testContext, session, subProtocol);
     });
   }
 
-  private void testSubscribe(Vertx vertx, VertxTestContext testContext, String subProtocol) {
+  @ParameterizedTest(name = "It allows clients to subscribe to and receive messages using {0}")
+  @ValueSource(strings = {"wamp.2.json", "wamp.2.msgpack"})
+  void testSubscribe(String subProtocol, Vertx vertx, VertxTestContext testContext) {
+    Checkpoint checkpoint = testContext.checkpoint();
     startWithTestRealm(vertx, testContext, server -> {
       Session session = new Session();
       session.addOnJoinListener((session1, sessionDetails) -> {
@@ -139,7 +132,7 @@ class IntegrationTest {
             assertTrue((eventDetails.publication >= 1) &&
                 (eventDetails.publication <= IDGenerator.MAX_ID));
           });
-          testContext.completeNow();
+          checkpoint.flag();
         }).thenApply((Subscription subscription) -> {
           testContext.verify(() -> {
             assertTrue(subscription.isActive());
@@ -158,8 +151,10 @@ class IntegrationTest {
   @Test
   @DisplayName("It delivers messages after other subscription shuts down")
   void testSubscriptionDisconnect(Vertx vertx, VertxTestContext testContext) {
+    Checkpoint checkpoint = testContext.checkpoint();
     startWithTestRealm(vertx, testContext, server -> {
       Session session = new Session();
+
       session.addOnJoinListener((session1, sessionDetails) -> {
         session.subscribe("hello.world", (o, eventDetails) -> {
           // do nothing in this, it will disconnect ASAP
@@ -172,7 +167,7 @@ class IntegrationTest {
             Session sess2 = new Session();
             sess2.addOnJoinListener((_sess2, sess2Details) -> {
               sess2.subscribe("hello.world", (o, eventDetails) -> {
-                testContext.completeNow();
+                checkpoint.flag();
               }).thenApply((Subscription sub2) -> {
                 testContext.verify(() -> {
                   assertTrue(sub2.isActive());
@@ -198,11 +193,14 @@ class IntegrationTest {
       VertxTestContext testContext,
       Handler<WAMPWebsocketServer> handler) {
     WAMPWebsocketServer server = WAMPWebsocketServer.create(vertx);
+    Checkpoint startCheckpoint = testContext.checkpoint();
     server.addRealm(testRealm).listen(LISTEN_PORT, LISTEN_HOST).onComplete(res -> {
       if (res.failed()) {
         testContext.failNow(res.cause());
+      } else {
+        startCheckpoint.flag();
+        handler.handle(server);
       }
-      handler.handle(server);
     });
   }
 
