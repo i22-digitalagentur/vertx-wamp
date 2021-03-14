@@ -13,7 +13,7 @@ import io.vertx.junit5.VertxTestContext;
 import io.vertx.wamp.Realm;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPWebsocketServer;
-import io.vertx.wamp.util.IDGenerator;
+import io.vertx.wamp.util.SequentialIdGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -130,7 +130,7 @@ class IntegrationTest {
         session.subscribe("hello.world", (o, eventDetails) -> {
           testContext.verify(() -> {
             assertTrue((eventDetails.publication >= 1) &&
-                (eventDetails.publication <= IDGenerator.MAX_ID));
+                (eventDetails.publication <= SequentialIdGenerator.MAX_ID));
           });
           checkpoint.flag();
         }).thenApply((Subscription subscription) -> {

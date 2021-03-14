@@ -4,13 +4,8 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
-import io.vertx.wamp.messages.AbortMessage;
-import io.vertx.wamp.messages.GoodbyeMessage;
-import io.vertx.wamp.messages.HelloMessage;
-import io.vertx.wamp.messages.PublishMessage;
-import io.vertx.wamp.messages.SubscribeMessage;
-import io.vertx.wamp.messages.UnsubscribeMessage;
-import io.vertx.wamp.util.IDGenerator;
+import io.vertx.wamp.messages.*;
+import io.vertx.wamp.util.SessionIdGenerator;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -24,13 +19,12 @@ import java.util.logging.Logger;
  * will be closed once the session terminates.
  */
 public class WampSession {
-
-  static IDGenerator sessionIdGenerator = new IDGenerator();
+  private final static SessionIdGenerator sessionIdGenerator = new SessionIdGenerator();
 
   private final Logger logger = Logger.getLogger(WampSession.class.getCanonicalName());
   private final MessageTransport messageTransport;
   private final SecurityPolicy.ClientInfo clientInfo;
-  private final long sessionId;
+  private final Long sessionId;
   private final RealmProvider realmProvider;
   private Realm realm;
   private State state;
@@ -55,11 +49,7 @@ public class WampSession {
     this.clientInfo = clientInfo;
     this.realmProvider = realmProvider;
     this.state = State.ESTABLISHING;
-
-    // TODO: assumes for now that there'll never be 2^53 sessions
-    // before restarting the app. Could probably be a free list of ~2^16 or so
-    // ids because we'll probably never have more connections than that
-    this.sessionId = sessionIdGenerator.nextValue();
+    this.sessionId = sessionIdGenerator.next();
   }
 
   // constructor function
@@ -162,10 +152,11 @@ public class WampSession {
     if (clientInfo != null) {
       clientInfo.getPolicy().releaseConnection(clientInfo);
     }
+    sessionIdGenerator.release(sessionId);
   }
 
   private void handleMessage(WAMPMessage message) {
-    WAMPMessage.Type messageType = message.getType();
+    final WAMPMessage.Type messageType = message.getType();
     logger.log(Level.FINEST, "Handling message {0}: {1}", new Object[]{sessionId, messageType});
     if (!state.allowedToReceive().contains(messageType)) {
       logger.log(Level.WARNING, "Protocol violation {0}: message {1} not expected in state {2}",
@@ -186,7 +177,7 @@ public class WampSession {
   }
 
   private void handleHello(HelloMessage message) {
-    Optional<Realm> targetRealm = realmProvider.getRealms().stream()
+    final Optional<Realm> targetRealm = realmProvider.getRealms().stream()
         .filter(r -> r.getUri().equals(message.getRealm()))
         .findFirst();
     if (targetRealm.isPresent()) {
@@ -223,7 +214,7 @@ public class WampSession {
     // any event related to the subscription will be delivered via the message transport
     logger.log(Level.FINE, "Subscription added: {0} - {1} - {2}", new Object[]{sessionId, realm,
         message.getTopic()});
-    long subscriptionId = realm.addSubscription(this, message.getTopic());
+    final long subscriptionId = realm.addSubscription(this, message.getTopic());
     sendMessage(MessageFactory.createSubscribedMessage(message.getId(), subscriptionId));
   }
 
@@ -233,7 +224,7 @@ public class WampSession {
   }
 
   private void sendWelcome() {
-    WAMPMessage message = MessageFactory.createWelcomeMessage(sessionId);
+    final WAMPMessage message = MessageFactory.createWelcomeMessage(sessionId);
     sendMessage(message);
   }
 
