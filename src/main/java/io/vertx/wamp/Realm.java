@@ -4,12 +4,11 @@ import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.wamp.messages.EventMessage;
 import io.vertx.wamp.messages.PublishMessage;
+import io.vertx.wamp.util.PublicationIdGenerator;
 import io.vertx.wamp.util.SequentialIdGenerator;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+
+import java.security.SecureRandom;
+import java.util.*;
 import java.util.stream.Collectors;
 
 // the realm manages all subscriptions and publications in it
@@ -19,9 +18,7 @@ public class Realm {
 
   private final List<Subscription> subscriptions = new ArrayList<>();
   private final SequentialIdGenerator subscriptionIdGenerator = new SequentialIdGenerator();
-  // FIXME: publication id is global scope and needs to be random
-  // come up with something that avoids the birthday paradox
-  private final SequentialIdGenerator publicationIdGenerator = new SequentialIdGenerator();
+  private final PublicationIdGenerator publicationIdGenerator = new PublicationIdGenerator(new SecureRandom().nextLong());
 
   public Realm(Uri uri) {
     this.uri = uri;
@@ -36,15 +33,15 @@ public class Realm {
       Map<String, Object> options,
       List<Object> arguments,
       Map<String, Object> argumentsKw) {
-    Long publicationId = publicationIdGenerator.nextValue();
+    long publicationId = publicationIdGenerator.next();
     List<Future> publishFutures = getSubscriptions(topic).parallelStream()
-        .map(subscription -> deliverEventMessage(subscription,
-            MessageFactory.createEvent(
-                subscription.id,
-                publicationId,
-                options,
-                arguments,
-                argumentsKw))).collect(Collectors.toList());
+                                                         .map(subscription -> deliverEventMessage(subscription,
+                                                             MessageFactory.createEvent(
+                                                                 subscription.id,
+                                                                 publicationId,
+                                                                 options,
+                                                                 arguments,
+                                                                 argumentsKw))).collect(Collectors.toList());
     return CompositeFuture.all(publishFutures).map(publicationId);
   }
 
@@ -102,7 +99,7 @@ public class Realm {
   private long generateSubscriptionId() {
     // as stupid & simple as possible for now
     while (true) {
-      final long retVal = this.subscriptionIdGenerator.nextValue();
+      final long retVal = this.subscriptionIdGenerator.next();
       if (subscriptions.stream().noneMatch(
           subscription -> subscription.id == retVal)) {
         return retVal;

@@ -13,7 +13,6 @@ import io.vertx.junit5.VertxTestContext;
 import io.vertx.wamp.Realm;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPWebsocketServer;
-import io.vertx.wamp.util.SequentialIdGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import static io.vertx.wamp.util.SessionIdGenerator.MAX_ID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(VertxExtension.class)
@@ -89,12 +89,9 @@ class IntegrationTest {
     Checkpoint checkpoint = testContext.checkpoint();
     server.listen(LISTEN_PORT, LISTEN_HOST).onComplete(testContext.succeeding(res -> {
       Session session = new Session();
-      session.addOnJoinListener((_session, sessionDetails) -> {
-        testContext.failNow(new RuntimeException("Managed to join a non-existing realm"));
-      });
-      session.addOnDisconnectListener((_sess, clean) -> {
-        checkpoint.flag();
-      });
+      session.addOnJoinListener((_session, sessionDetails) ->
+          testContext.failNow(new RuntimeException("Managed to join a non-existing realm")));
+      session.addOnDisconnectListener((_sess, clean) -> checkpoint.flag());
       connectSessionOrFail(testContext, session);
     }));
   }
@@ -105,17 +102,16 @@ class IntegrationTest {
     Checkpoint checkpoint = testContext.checkpoint();
     startWithTestRealm(vertx, testContext, server -> {
       Session session = new Session();
-      session.addOnJoinListener((session1, sessionDetails) -> {
-        session.publish("hello.world", Collections.emptyList(), Map
-            .of("Hello", "world"), new PublishOptions(true, false))
-            .whenComplete((publication, throwable) -> {
-              testContext.verify(() -> {
-                assertNull(throwable);
-                assertTrue(publication.publication > 0);
-              });
-              checkpoint.flag();
-            });
-      });
+      session.addOnJoinListener((session1, sessionDetails) ->
+          session.publish("hello.world", Collections.emptyList(), Map
+              .of("Hello", "world"), new PublishOptions(true, false))
+                 .whenComplete((publication, throwable) -> {
+                   testContext.verify(() -> {
+                     assertNull(throwable);
+                     assertTrue(publication.publication > 0);
+                   });
+                   checkpoint.flag();
+                 }));
       connectSessionOrFail(testContext, session, subProtocol);
     });
   }
@@ -126,24 +122,20 @@ class IntegrationTest {
     Checkpoint checkpoint = testContext.checkpoint();
     startWithTestRealm(vertx, testContext, server -> {
       Session session = new Session();
-      session.addOnJoinListener((session1, sessionDetails) -> {
-        session.subscribe("hello.world", (o, eventDetails) -> {
-          testContext.verify(() -> {
-            assertTrue((eventDetails.publication >= 1) &&
-                (eventDetails.publication <= SequentialIdGenerator.MAX_ID));
-          });
-          checkpoint.flag();
-        }).thenApply((Subscription subscription) -> {
-          testContext.verify(() -> {
-            assertTrue(subscription.isActive());
-          });
-          testRealm.publishMessage(new Uri("hello.world"),
-              Collections.emptyMap(),
-              null,
-              null);
-          return true;
-        });
-      });
+      session.addOnJoinListener((session1, sessionDetails) ->
+          session.subscribe("hello.world", (o, eventDetails) -> {
+            testContext.verify(() ->
+                assertTrue((eventDetails.publication >= 1) &&
+                           (eventDetails.publication <= MAX_ID)));
+            checkpoint.flag();
+          }).thenApply((Subscription subscription) -> {
+            testContext.verify(() -> assertTrue(subscription.isActive()));
+            testRealm.publishMessage(new Uri("hello.world"),
+                Collections.emptyMap(),
+                null,
+                null);
+            return true;
+          }));
       connectSessionOrFail(testContext, session, subProtocol);
     });
   }
@@ -155,43 +147,37 @@ class IntegrationTest {
     startWithTestRealm(vertx, testContext, server -> {
       Session session = new Session();
 
-      session.addOnJoinListener((session1, sessionDetails) -> {
-        session.subscribe("hello.world", (o, eventDetails) -> {
-          // do nothing in this, it will disconnect ASAP
-        }).thenApply((Subscription subscription) -> {
-          testContext.verify(() -> {
-            assertTrue(subscription.isActive());
-          });
-          session.addOnDisconnectListener((_sess, clean) -> {
-            // start a second session
-            Session sess2 = new Session();
-            sess2.addOnJoinListener((_sess2, sess2Details) -> {
-              sess2.subscribe("hello.world", (o, eventDetails) -> {
-                checkpoint.flag();
-              }).thenApply((Subscription sub2) -> {
-                testContext.verify(() -> {
-                  assertTrue(sub2.isActive());
-                });
-                testRealm.publishMessage(new Uri("hello.world"),
-                    Collections.emptyMap(),
-                    null,
-                    null);
-                return true;
-              });
+      session.addOnJoinListener((session1, sessionDetails) ->
+          session.subscribe("hello.world", (o, eventDetails) -> {
+            // do nothing in this, it will disconnect ASAP
+          }).thenApply((Subscription subscription) -> {
+            testContext.verify(() -> assertTrue(subscription.isActive()));
+            session.addOnDisconnectListener((_sess, clean) -> {
+              // start a second session
+              Session sess2 = new Session();
+              sess2.addOnJoinListener((_sess2, sess2Details) ->
+                  sess2.subscribe("hello.world", (o, eventDetails) -> {
+                    checkpoint.flag();
+                  }).thenApply((Subscription sub2) -> {
+                    testContext.verify(() -> assertTrue(sub2.isActive()));
+                    testRealm.publishMessage(new Uri("hello.world"),
+                        Collections.emptyMap(),
+                        null,
+                        null);
+                    return true;
+                  }));
+              connectSessionOrFail(testContext, sess2);
             });
-            connectSessionOrFail(testContext, sess2);
-          });
-          session.leave();
-          return true;
-        });
-      });
+            session.leave();
+            return true;
+          }));
       connectSessionOrFail(testContext, session);
     });
   }
 
   private void startWithTestRealm(Vertx vertx,
-      VertxTestContext testContext,
-      Handler<WAMPWebsocketServer> handler) {
+                                  VertxTestContext testContext,
+                                  Handler<WAMPWebsocketServer> handler) {
     WAMPWebsocketServer server = WAMPWebsocketServer.create(vertx);
     Checkpoint startCheckpoint = testContext.checkpoint();
     server.addRealm(testRealm).listen(LISTEN_PORT, LISTEN_HOST).onComplete(res -> {
@@ -221,7 +207,7 @@ class IntegrationTest {
   }
 
   private void connectSessionOrFail(VertxTestContext testContext, Session session,
-      String subProtocol) {
+                                    String subProtocol) {
     Client client = createClient(session, subProtocol);
     client.connect().handle((exitInfo, throwable) -> {
       if (throwable != null) {
