@@ -18,7 +18,7 @@ public class Realm {
 
   private final List<Subscription> subscriptions = new ArrayList<>();
   private final SequentialIdGenerator subscriptionIdGenerator = new SequentialIdGenerator();
-  private final PublicationIdGenerator publicationIdGenerator = new PublicationIdGenerator(new SecureRandom().nextLong());
+  private final PublicationIdGenerator publicationIdGenerator = new PublicationIdGenerator();
 
   public Realm(Uri uri) {
     this.uri = uri;
