@@ -41,6 +41,7 @@ public class SecurityPolicyExamples {
       this.owner = owner;
     }
 
+    @SuppressWarnings("java:S3740")
     @Override
     public SecurityPolicy getPolicy() {
       return owner;

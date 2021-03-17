@@ -25,7 +25,7 @@ public class MessageFactory {
   // only supports messages part of the receiving / broker end
   public static <I, O> WAMPMessage parseMessage(I message, MessageDecoder<I, O> messageDecoder)
       throws IOException {
-    Map.Entry<WAMPMessage.Type, O> decoded = messageDecoder.parseMessage(message);
+    final Map.Entry<WAMPMessage.Type, O> decoded = messageDecoder.parseMessage(message);
     switch (decoded.getKey()) {
       case HELLO:
         return new HelloMessage(decoded.getValue(), messageDecoder);

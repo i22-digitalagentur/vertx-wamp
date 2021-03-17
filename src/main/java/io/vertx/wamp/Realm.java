@@ -4,12 +4,10 @@ import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.wamp.messages.EventMessage;
 import io.vertx.wamp.messages.PublishMessage;
-import io.vertx.wamp.util.IDGenerator;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import io.vertx.wamp.util.RandomIdGenerator;
+import io.vertx.wamp.util.SequentialIdGenerator;
+
+import java.util.*;
 import java.util.stream.Collectors;
 
 // the realm manages all subscriptions and publications in it
@@ -18,8 +16,8 @@ public class Realm {
   private final Uri uri;
 
   private final List<Subscription> subscriptions = new ArrayList<>();
-  private final IDGenerator subscriptionIdGenerator = new IDGenerator();
-  private final IDGenerator publicationIdGenerator = new IDGenerator();
+  private final SequentialIdGenerator subscriptionIdGenerator = new SequentialIdGenerator();
+  private final RandomIdGenerator publicationIdGenerator = new RandomIdGenerator();
 
   public Realm(Uri uri) {
     this.uri = uri;
@@ -34,15 +32,15 @@ public class Realm {
       Map<String, Object> options,
       List<Object> arguments,
       Map<String, Object> argumentsKw) {
-    Long publicationId = publicationIdGenerator.nextValue();
+    long publicationId = publicationIdGenerator.next();
     List<Future> publishFutures = getSubscriptions(topic).parallelStream()
-        .map(subscription -> deliverEventMessage(subscription,
-            MessageFactory.createEvent(
-                subscription.id,
-                publicationId,
-                options,
-                arguments,
-                argumentsKw))).collect(Collectors.toList());
+                                                         .map(subscription -> deliverEventMessage(subscription,
+                                                             MessageFactory.createEvent(
+                                                                 subscription.id,
+                                                                 publicationId,
+                                                                 options,
+                                                                 arguments,
+                                                                 argumentsKw))).collect(Collectors.toList());
     return CompositeFuture.all(publishFutures).map(publicationId);
   }
 
@@ -55,7 +53,7 @@ public class Realm {
   }
 
   private boolean isPublishAuthorized(Subscription subscription, EventMessage message) {
-    SecurityPolicy.ClientInfo clientInfo = subscription.consumer.getClientInfo();
+    final SecurityPolicy.ClientInfo clientInfo = subscription.consumer.getClientInfo();
     return clientInfo == null || clientInfo.getPolicy()
         .authorizeEvent(clientInfo, subscription.topic, message);
   }
@@ -74,7 +72,7 @@ public class Realm {
   }
 
   public synchronized long addSubscription(WampSession session, Uri topic) {
-    long subscriptionId = generateSubscriptionId();
+    final long subscriptionId = generateSubscriptionId();
     this.subscriptions.add(new Subscription(session,
         subscriptionId,
         topic));
@@ -87,9 +85,9 @@ public class Realm {
 
   // pass in the session so that adversarial or buggy clients can't unsubscribe s/o else
   public synchronized void removeSubscription(WampSession session, long subscriptionId) {
-    Iterator<Subscription> it = this.subscriptions.iterator();
+    final Iterator<Subscription> it = this.subscriptions.iterator();
     while (it.hasNext()) {
-      Subscription s = it.next();
+      final Subscription s = it.next();
       if (s.id == subscriptionId && s.consumer == session) {
         it.remove();
         return;
@@ -100,7 +98,7 @@ public class Realm {
   private long generateSubscriptionId() {
     // as stupid & simple as possible for now
     while (true) {
-      long retVal = this.subscriptionIdGenerator.nextValue();
+      final long retVal = this.subscriptionIdGenerator.next();
       if (subscriptions.stream().noneMatch(
           subscription -> subscription.id == retVal)) {
         return retVal;

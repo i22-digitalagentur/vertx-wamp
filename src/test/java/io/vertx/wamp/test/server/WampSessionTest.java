@@ -69,7 +69,7 @@ public class WampSessionTest {
       transport.receiveHandler.accept(new HelloMessage(testRealm.getUri(), Collections.EMPTY_MAP));
       ArgumentCaptor<WelcomeMessage> captor = ArgumentCaptor.forClass(WelcomeMessage.class);
       Mockito.verify(transport).sendMessage(captor.capture(), any());
-      assertTrue(captor.getValue().getSessionId() > 0);
+      assertTrue(captor.getValue().getSessionId() > 0L);
     }
 
     @Test

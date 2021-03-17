@@ -26,7 +26,7 @@ public class WAMPWebsocketServer implements RealmProvider, Closeable {
   private SecurityPolicy securityPolicy;
 
   protected WAMPWebsocketServer(Vertx vertx) {
-    HttpServerOptions options = new HttpServerOptions();
+    final HttpServerOptions options = new HttpServerOptions();
     options.addWebSocketSubProtocol("wamp.2.json");
     options.addWebSocketSubProtocol("wamp.2.msgpack");
     httpServer = vertx.createHttpServer(options);
@@ -64,7 +64,7 @@ public class WAMPWebsocketServer implements RealmProvider, Closeable {
   }
 
   public Future<WAMPWebsocketServer> listen(int port, String host) {
-    SocketAddress sa = SocketAddress.inetSocketAddress(port, host);
+    final SocketAddress sa = SocketAddress.inetSocketAddress(port, host);
     return this.httpServer.listen(sa).map(this);
   }
 
@@ -77,8 +77,8 @@ public class WAMPWebsocketServer implements RealmProvider, Closeable {
         return;
       }
     }
-    MessageTransport messageTransport = new WebsocketMessageTransport(webSocket);
-    WampSession session = WampSession.establish(messageTransport, clientInfo, this);
+    final MessageTransport messageTransport = new WebsocketMessageTransport(webSocket);
+    final WampSession session = WampSession.establish(messageTransport, clientInfo, this);
     connections.add(session);
     webSocket.closeHandler(voidResult ->
         // Investigate whether this may clash with shutdown
@@ -94,12 +94,12 @@ public class WAMPWebsocketServer implements RealmProvider, Closeable {
   @Override
   public void close(Promise<Void> promise) {
     @SuppressWarnings("java:S3740")
-    List<Future> promises = connections.parallelStream().map(session -> {
-      Promise sessionPromise = Promise.promise();
+    final List<Future> promises = connections.parallelStream().map(session -> {
+      final Promise sessionPromise = Promise.promise();
       session.shutdown(Uri.CLOSE_REALM, sessionPromise);
       return sessionPromise.future();
     }).collect(Collectors.toList());
-    CompositeFuture.all(promises).onComplete(result -> httpServer.close(promise));
+    CompositeFuture.join(promises).onComplete(result -> httpServer.close(promise));
   }
 
   public static class RealmExistsException extends RuntimeException {
