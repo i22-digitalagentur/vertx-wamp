@@ -5,7 +5,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.wamp.messages.*;
-import io.vertx.wamp.util.SessionIdGenerator;
+import io.vertx.wamp.util.NonDuplicateRandomIdGenerator;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +19,7 @@ import java.util.logging.Logger;
  * will be closed once the session terminates.
  */
 public class WampSession {
-  private final static SessionIdGenerator sessionIdGenerator = new SessionIdGenerator();
+  private final static NonDuplicateRandomIdGenerator sessionIdGenerator = new NonDuplicateRandomIdGenerator();
 
   private final Logger logger = Logger.getLogger(WampSession.class.getCanonicalName());
   private final MessageTransport messageTransport;

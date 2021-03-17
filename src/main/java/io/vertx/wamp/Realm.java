@@ -4,10 +4,9 @@ import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.wamp.messages.EventMessage;
 import io.vertx.wamp.messages.PublishMessage;
-import io.vertx.wamp.util.PublicationIdGenerator;
+import io.vertx.wamp.util.RandomIdGenerator;
 import io.vertx.wamp.util.SequentialIdGenerator;
 
-import java.security.SecureRandom;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -18,7 +17,7 @@ public class Realm {
 
   private final List<Subscription> subscriptions = new ArrayList<>();
   private final SequentialIdGenerator subscriptionIdGenerator = new SequentialIdGenerator();
-  private final PublicationIdGenerator publicationIdGenerator = new PublicationIdGenerator();
+  private final RandomIdGenerator publicationIdGenerator = new RandomIdGenerator();
 
   public Realm(Uri uri) {
     this.uri = uri;

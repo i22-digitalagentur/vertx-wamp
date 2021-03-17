@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import static io.vertx.wamp.util.SessionIdGenerator.MAX_ID;
+import static io.vertx.wamp.util.IdGenerator.MAX_ID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(VertxExtension.class)

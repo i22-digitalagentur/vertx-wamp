@@ -2,11 +2,8 @@ package io.vertx.wamp.util;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-import static io.vertx.wamp.util.SessionIdGenerator.MAX_ID;
-
-
 // generates sequential ids, thread-safe
-public class SequentialIdGenerator {
+public class SequentialIdGenerator implements IdGenerator {
 
   private final AtomicLong currentValue;
 
