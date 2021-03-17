@@ -47,6 +47,11 @@ public interface SecurityPolicy<T extends SecurityPolicy.ClientInfo> {
   boolean authorizeSubscribe(T client, Uri realm, Uri subscribePattern);
 
   /*
+   * Authorize a procedure registration request to a given procedure
+   */
+  boolean authorizeRegister(T client, Uri realm, Uri procedure);
+
+  /*
    * Authorize a publication to a given topic
    */
   boolean authorizePublish(T client, Uri realm, Uri topic);

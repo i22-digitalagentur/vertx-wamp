@@ -6,6 +6,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.wamp.messages.*;
 import io.vertx.wamp.util.NonDuplicateRandomIdGenerator;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +37,9 @@ public class WampSession {
       (WAMPMessage msg) -> handleUnsubscribe((UnsubscribeMessage) msg),
       WAMPMessage.Type.PUBLISH, (WAMPMessage msg) -> handlePublish((PublishMessage) msg),
       WAMPMessage.Type.ABORT, (WAMPMessage msg) -> handleAbort((AbortMessage) msg),
-      WAMPMessage.Type.GOODBYE, (WAMPMessage msg) -> handleGoodbye((GoodbyeMessage) msg)
+      WAMPMessage.Type.GOODBYE, (WAMPMessage msg) -> handleGoodbye((GoodbyeMessage) msg),
+      WAMPMessage.Type.REGISTER, (WAMPMessage msg) -> handleRegister((RegisterMessage) msg),
+      WAMPMessage.Type.UNREGISTER, (WAMPMessage msg) -> handleUnregister((UnregisterMessage) msg)
   );
 
   private WampSession(MessageTransport messageTransport,
@@ -218,9 +221,37 @@ public class WampSession {
     sendMessage(MessageFactory.createSubscribedMessage(message.getId(), subscriptionId));
   }
 
+  private void handleRegister(RegisterMessage message) {
+    if (clientInfo != null && !clientInfo.getPolicy().authorizeRegister(clientInfo,
+        this.realm.getUri(),
+        message.getProcedure())) {
+      logger.log(Level.WARNING, "Denied registration {0}: {1} - {2}",
+          new Object[]{
+              sessionId,
+              realm,
+              message.getProcedure()});
+      sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.REGISTER,
+          message.getId(),
+          Map.of(),
+          Uri.NOT_AUTHORIZED));
+      return;
+    }
+
+    // any event related to the registration will be delivered via the message transport
+    logger.log(Level.FINE, "Registration added: {0} - {1} - {2}", new Object[]{sessionId, realm,
+        message.getProcedure()});
+    final long registrationId = realm.addRegistration(this, message.getProcedure());
+    sendMessage(MessageFactory.createRegisteredMessage(message.getId(), registrationId));
+  }
+
   private void handleUnsubscribe(UnsubscribeMessage message) {
     realm.removeSubscription(this, message.getSubscription());
     sendMessage(MessageFactory.createUnsubscribedMessage(message.getId()));
+  }
+
+  private void handleUnregister(UnregisterMessage message) {
+    realm.removeRegistration(this, message.getRegistration());
+    sendMessage(MessageFactory.createUnregisteredMessage(message.getId()));
   }
 
   private void sendWelcome() {
@@ -245,6 +276,7 @@ public class WampSession {
     // when establishing the session, wait for a HELLO from the client
     ESTABLISHING(WAMPMessage.Type.HELLO),
     ESTABLISHED(WAMPMessage.Type.SUBSCRIBE, WAMPMessage.Type.PUBLISH, WAMPMessage.Type.UNSUBSCRIBE,
+        WAMPMessage.Type.REGISTER, WAMPMessage.Type.UNREGISTER,
         WAMPMessage.Type.GOODBYE),
     CLOSING(), // received goodbye, not expecting any more messages
     SHUTTING_DOWN(WAMPMessage.Type.GOODBYE), // sent goodbye, waiting for ack

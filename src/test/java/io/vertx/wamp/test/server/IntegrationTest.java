@@ -2,9 +2,9 @@ package io.vertx.wamp.test.server;
 
 import io.crossbar.autobahn.wamp.Client;
 import io.crossbar.autobahn.wamp.Session;
+import io.crossbar.autobahn.wamp.interfaces.IInvocationHandler;
 import io.crossbar.autobahn.wamp.transports.NettyWebSocket;
-import io.crossbar.autobahn.wamp.types.PublishOptions;
-import io.crossbar.autobahn.wamp.types.Subscription;
+import io.crossbar.autobahn.wamp.types.*;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.junit5.Checkpoint;
@@ -137,6 +137,30 @@ class IntegrationTest {
             return true;
           }));
       connectSessionOrFail(testContext, session, subProtocol);
+    });
+  }
+
+  @Test
+  @DisplayName("It allows registering and unregistering a procedure")
+  void testRegisterAndUnregister(Vertx vertx, VertxTestContext testContext) {
+    Checkpoint checkpoint = testContext.checkpoint();
+
+    startWithTestRealm(vertx, testContext, server -> {
+      Session session = new Session();
+      session.addOnJoinListener((session1, sessionDetails) ->
+          session.register("hello.world", (IInvocationHandler)
+              (list, map, invocationDetails) -> new InvocationResult(3)
+          ).thenApply((Registration registration) -> {
+            testContext.verify(() -> assertTrue(registration.isActive()));
+            session.unregister(registration).thenApply((Integer result) -> {
+              // let's assume 0 means success...
+              testContext.verify(() -> assertEquals(0, result));
+              checkpoint.flag();
+              return true;
+            });
+            return true;
+          }));
+      connectSessionOrFail(testContext, session);
     });
   }
 

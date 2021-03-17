@@ -91,6 +91,11 @@ public class SecurityPolicyExamples {
       return subscribePattern.toString().equalsIgnoreCase("authorized.topic");
     }
 
+    @Override
+    public boolean authorizeRegister(ExampleClientInfo client, Uri realm, Uri procedure) {
+      return true;
+    }
+
     // guests are not allowed to publish
     @Override
     public boolean authorizePublish(ExampleClientInfo client, Uri realm, Uri topic) {

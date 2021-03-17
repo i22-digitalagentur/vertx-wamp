@@ -1,17 +1,7 @@
 package io.vertx.wamp;
 
-import io.vertx.wamp.messages.AbortMessage;
-import io.vertx.wamp.messages.ErrorMessage;
-import io.vertx.wamp.messages.EventMessage;
-import io.vertx.wamp.messages.GoodbyeMessage;
-import io.vertx.wamp.messages.HelloMessage;
-import io.vertx.wamp.messages.PublishMessage;
-import io.vertx.wamp.messages.PublishedMessage;
-import io.vertx.wamp.messages.SubscribeMessage;
-import io.vertx.wamp.messages.SubscribedMessage;
-import io.vertx.wamp.messages.UnsubscribeMessage;
-import io.vertx.wamp.messages.UnsubscribedMessage;
-import io.vertx.wamp.messages.WelcomeMessage;
+import io.vertx.wamp.messages.*;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -39,6 +29,10 @@ public class MessageFactory {
         return new UnsubscribeMessage(decoded.getValue(), messageDecoder);
       case PUBLISH:
         return new PublishMessage(decoded.getValue(), messageDecoder);
+      case REGISTER:
+        return new RegisterMessage(decoded.getValue(), messageDecoder);
+      case UNREGISTER:
+        return new UnregisterMessage(decoded.getValue(), messageDecoder);
       default:
         throw new IllegalArgumentException(String.format("Construction of %s not supported",
             decoded.getKey().name()));
@@ -64,6 +58,10 @@ public class MessageFactory {
     return new UnsubscribedMessage(requestId);
   }
 
+  static WAMPMessage createUnregisteredMessage(long requestId) {
+    return new UnregisteredMessage(requestId);
+  }
+
   static WAMPMessage createPublishedMessage(long requestId, long publicationId) {
     return new PublishedMessage(requestId, publicationId);
   }
@@ -77,6 +75,10 @@ public class MessageFactory {
 
   public static WAMPMessage createSubscribedMessage(long id, long subscriptionId) {
     return new SubscribedMessage(id, subscriptionId);
+  }
+
+  public static WAMPMessage createRegisteredMessage(long id, long registrationId) {
+    return new RegisteredMessage(id, registrationId);
   }
 
   public static EventMessage createEvent(long subscriptionId,

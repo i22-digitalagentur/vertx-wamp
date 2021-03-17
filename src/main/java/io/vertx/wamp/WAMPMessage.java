@@ -27,7 +27,11 @@ public interface WAMPMessage {
     SUBSCRIBED(33),
     UNSUBSCRIBE(34),
     UNSUBSCRIBED(35),
-    EVENT(36);
+    EVENT(36),
+    REGISTER(64),
+    REGISTERED(65),
+    UNREGISTER(66),
+    UNREGISTERED(67);
 
     private final int messageCode;
 
@@ -44,7 +48,7 @@ public interface WAMPMessage {
           return v;
         }
       }
-      throw new WAMPProtocolException("Unknown message type");
+      throw new WAMPProtocolException("Unknown message type " + code);
     }
 
     public int getMessageCode() {

@@ -4,10 +4,12 @@ import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.wamp.messages.EventMessage;
 import io.vertx.wamp.messages.PublishMessage;
+import io.vertx.wamp.util.NonDuplicateRandomIdGenerator;
 import io.vertx.wamp.util.RandomIdGenerator;
 import io.vertx.wamp.util.SequentialIdGenerator;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 // the realm manages all subscriptions and publications in it
@@ -16,7 +18,8 @@ public class Realm {
   private final Uri uri;
 
   private final List<Subscription> subscriptions = new ArrayList<>();
-  private final SequentialIdGenerator subscriptionIdGenerator = new SequentialIdGenerator();
+  private final List<Subscription> registrations = new ArrayList<>();
+  private final NonDuplicateRandomIdGenerator subscriptionIdGenerator = new NonDuplicateRandomIdGenerator();
   private final RandomIdGenerator publicationIdGenerator = new RandomIdGenerator();
 
   public Realm(Uri uri) {
@@ -72,38 +75,54 @@ public class Realm {
   }
 
   public synchronized long addSubscription(WampSession session, Uri topic) {
-    final long subscriptionId = generateSubscriptionId();
+    final long subscriptionId = subscriptionIdGenerator.next();
     this.subscriptions.add(new Subscription(session,
         subscriptionId,
         topic));
     return subscriptionId;
   }
 
-  public synchronized void removeSession(WampSession session) {
-    this.subscriptions.removeIf(s -> s.consumer == session);
+  public synchronized long addRegistration(WampSession session, Uri topic) {
+    // routers are free to choose a generation strategy - let's re-use the same sequence as for subscriptions
+    final long registrationId = subscriptionIdGenerator.next();
+    // but still store them separately
+    this.registrations.add(new Subscription(session,
+        registrationId,
+        topic));
+    return registrationId;
   }
 
-  // pass in the session so that adversarial or buggy clients can't unsubscribe s/o else
-  public synchronized void removeSubscription(WampSession session, long subscriptionId) {
-    final Iterator<Subscription> it = this.subscriptions.iterator();
+  public synchronized void removeSession(WampSession session) {
+    Predicate<Subscription> checkId = (Subscription s) -> {
+      if (s.consumer == session) {
+        subscriptionIdGenerator.release(s.id);
+        return true;
+      } else {
+        return false;
+      }
+    };
+    this.subscriptions.removeIf(checkId);
+    this.registrations.removeIf(checkId);
+  }
+
+  private void removeEntry(List<Subscription> list, WampSession session, long entryId) {
+    final Iterator<Subscription> it = list.iterator();
     while (it.hasNext()) {
       final Subscription s = it.next();
-      if (s.id == subscriptionId && s.consumer == session) {
+      if (s.id == entryId && s.consumer == session) {
         it.remove();
         return;
       }
     }
   }
 
-  private long generateSubscriptionId() {
-    // as stupid & simple as possible for now
-    while (true) {
-      final long retVal = this.subscriptionIdGenerator.next();
-      if (subscriptions.stream().noneMatch(
-          subscription -> subscription.id == retVal)) {
-        return retVal;
-      }
-    }
+  // pass in the session so that adversarial or buggy clients can't unsubscribe s/o else
+  public synchronized void removeSubscription(WampSession session, long subscriptionId) {
+    removeEntry(subscriptions, session, subscriptionId);
+  }
+
+  public synchronized void removeRegistration(WampSession session, long registrationId) {
+    removeEntry(registrations, session, registrationId);
   }
 
   @Override
@@ -121,6 +140,7 @@ public class Realm {
     return uri.toString();
   }
 
+  // TODO: rename this - it's re-used for both subscription and registration
   static class Subscription {
 
     final Uri topic;
@@ -136,6 +156,11 @@ public class Realm {
     @Override
     public boolean equals(Object obj) {
       return (obj instanceof Subscription && ((Subscription) obj).id == id);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(id);
     }
   }
 }
