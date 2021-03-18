@@ -15,6 +15,11 @@ public class UnregisterMessage implements WAMPMessage {
     this.registration = decoder.getLong(data, 1);
   }
 
+  public UnregisterMessage(long id, long registration) {
+    this.id = id;
+    this.registration = registration;
+  }
+
   public long getId() {
     return id;
   }

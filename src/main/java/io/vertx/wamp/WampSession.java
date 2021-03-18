@@ -7,13 +7,12 @@ import io.vertx.core.Promise;
 import io.vertx.wamp.messages.*;
 import io.vertx.wamp.util.NonDuplicateRandomIdGenerator;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static io.vertx.wamp.Uri.*;
 
 /**
  * Represents a session to the server. The underlying transport lifecycle is tied to the session and
@@ -43,8 +42,8 @@ public class WampSession {
   );
 
   private WampSession(MessageTransport messageTransport,
-      SecurityPolicy.ClientInfo clientInfo,
-      RealmProvider realmProvider) {
+                      SecurityPolicy.ClientInfo clientInfo,
+                      RealmProvider realmProvider) {
     this.messageTransport = messageTransport;
     messageTransport.setReceiveHandler(this::handleMessage);
     messageTransport.setErrorHandler(this::abortConnection);
@@ -57,8 +56,8 @@ public class WampSession {
 
   // constructor function
   public static WampSession establish(MessageTransport messageTransport,
-      SecurityPolicy.ClientInfo clientInfo,
-      RealmProvider realmProvider) {
+                                      SecurityPolicy.ClientInfo clientInfo,
+                                      RealmProvider realmProvider) {
     return new WampSession(messageTransport, clientInfo, realmProvider);
   }
 
@@ -91,7 +90,7 @@ public class WampSession {
 
   @Override
   public boolean equals(Object other) {
-    return (other instanceof WampSession && ((WampSession) other).sessionId == sessionId);
+    return (other instanceof WampSession && ((WampSession) other).sessionId.equals(sessionId));
   }
 
   public void shutdown(Uri reason, Handler<AsyncResult<Void>> shutdownHandler) {
@@ -113,15 +112,14 @@ public class WampSession {
   private void handlePublish(PublishMessage msg) {
     logger.log(Level.FINEST, "Publishing message: {0}", msg);
     if (clientInfo != null && !clientInfo.getPolicy()
-        .authorizePublish(clientInfo, realm.getUri(), msg.getTopic())) {
+                                         .authorizePublish(clientInfo, realm.getUri(), msg.getTopic())) {
       sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.PUBLISH,
           msg.getId(),
           Map.of(),
           Uri.NOT_AUTHORIZED));
     } else {
-      realm.publishMessage(msg).onSuccess(publicationId -> {
-        sendMessage(MessageFactory.createPublishedMessage(msg.getId(), publicationId));
-      });
+      realm.publishMessage(msg).onSuccess(publicationId ->
+          sendMessage(MessageFactory.createPublishedMessage(msg.getId(), publicationId)));
     }
   }
 
@@ -181,11 +179,11 @@ public class WampSession {
 
   private void handleHello(HelloMessage message) {
     final Optional<Realm> targetRealm = realmProvider.getRealms().stream()
-        .filter(r -> r.getUri().equals(message.getRealm()))
-        .findFirst();
+                                                     .filter(r -> r.getUri().equals(message.getRealm()))
+                                                     .findFirst();
     if (targetRealm.isPresent()) {
       if (clientInfo != null && !clientInfo.getPolicy()
-          .authorizeHello(clientInfo, message.getRealm())) {
+                                           .authorizeHello(clientInfo, message.getRealm())) {
         abortConnection(Uri.NOT_AUTHORIZED);
       } else {
         this.realm = targetRealm.get();
@@ -241,17 +239,30 @@ public class WampSession {
     logger.log(Level.FINE, "Registration added: {0} - {1} - {2}", new Object[]{sessionId, realm,
         message.getProcedure()});
     final long registrationId = realm.addRegistration(this, message.getProcedure());
-    sendMessage(MessageFactory.createRegisteredMessage(message.getId(), registrationId));
+    if (registrationId == -1) {
+      sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.REGISTER,
+          message.getId(), Collections.emptyMap(), PROCEDURE_ALREADY_EXISTS));
+    } else {
+      sendMessage(MessageFactory.createRegisteredMessage(message.getId(), registrationId));
+    }
   }
 
   private void handleUnsubscribe(UnsubscribeMessage message) {
-    realm.removeSubscription(this, message.getSubscription());
-    sendMessage(MessageFactory.createUnsubscribedMessage(message.getId()));
+    if (realm.removeSubscription(this, message.getSubscription())) {
+      sendMessage(MessageFactory.createUnsubscribedMessage(message.getId()));
+    } else {
+      sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.UNSUBSCRIBE,
+          message.getId(), Collections.emptyMap(), NO_SUCH_SUBSCRIPTION));
+    }
   }
 
   private void handleUnregister(UnregisterMessage message) {
-    realm.removeRegistration(this, message.getRegistration());
-    sendMessage(MessageFactory.createUnregisteredMessage(message.getId()));
+    if (realm.removeRegistration(this, message.getRegistration())) {
+      sendMessage(MessageFactory.createUnregisteredMessage(message.getId()));
+    } else {
+      sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.UNREGISTER,
+          message.getId(), Collections.emptyMap(), NO_SUCH_REGISTRATION));
+    }
   }
 
   private void sendWelcome() {

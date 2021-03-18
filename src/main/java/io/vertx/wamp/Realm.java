@@ -6,7 +6,6 @@ import io.vertx.wamp.messages.EventMessage;
 import io.vertx.wamp.messages.PublishMessage;
 import io.vertx.wamp.util.NonDuplicateRandomIdGenerator;
 import io.vertx.wamp.util.RandomIdGenerator;
-import io.vertx.wamp.util.SequentialIdGenerator;
 
 import java.util.*;
 import java.util.function.Predicate;
@@ -32,9 +31,9 @@ public class Realm {
   }
 
   public Future<Long> publishMessage(Uri topic,
-      Map<String, Object> options,
-      List<Object> arguments,
-      Map<String, Object> argumentsKw) {
+                                     Map<String, Object> options,
+                                     List<Object> arguments,
+                                     Map<String, Object> argumentsKw) {
     long publicationId = publicationIdGenerator.next();
     List<Future> publishFutures = getSubscriptions(topic).parallelStream()
                                                          .map(subscription -> deliverEventMessage(subscription,
@@ -58,7 +57,7 @@ public class Realm {
   private boolean isPublishAuthorized(Subscription subscription, EventMessage message) {
     final SecurityPolicy.ClientInfo clientInfo = subscription.consumer.getClientInfo();
     return clientInfo == null || clientInfo.getPolicy()
-        .authorizeEvent(clientInfo, subscription.topic, message);
+                                           .authorizeEvent(clientInfo, subscription.topic, message);
   }
 
   public Uri getUri() {
@@ -69,9 +68,9 @@ public class Realm {
     // a stream will raise an exception if the underlying data is changed while
     // it's being used so make a temporary copy
     return subscriptions.parallelStream()
-        // pattern matching is part of the advanced profile only
-        .filter(subscription -> subscription.topic.equals(pattern))
-        .collect(Collectors.toUnmodifiableList());
+                        // pattern matching is part of the advanced profile only
+                        .filter(subscription -> subscription.topic.equals(pattern))
+                        .collect(Collectors.toUnmodifiableList());
   }
 
   public synchronized long addSubscription(WampSession session, Uri topic) {
@@ -83,6 +82,10 @@ public class Realm {
   }
 
   public synchronized long addRegistration(WampSession session, Uri topic) {
+    if (this.registrations.parallelStream()
+                          .anyMatch((subscription) -> subscription.topic.equals(topic))) {
+      return -1;
+    }
     // routers are free to choose a generation strategy - let's re-use the same sequence as for subscriptions
     final long registrationId = subscriptionIdGenerator.next();
     // but still store them separately
@@ -105,24 +108,25 @@ public class Realm {
     this.registrations.removeIf(checkId);
   }
 
-  private void removeEntry(List<Subscription> list, WampSession session, long entryId) {
+  private boolean removeEntry(List<Subscription> list, WampSession session, long entryId) {
     final Iterator<Subscription> it = list.iterator();
     while (it.hasNext()) {
       final Subscription s = it.next();
       if (s.id == entryId && s.consumer == session) {
         it.remove();
-        return;
+        return true;
       }
     }
+    return false;
   }
 
   // pass in the session so that adversarial or buggy clients can't unsubscribe s/o else
-  public synchronized void removeSubscription(WampSession session, long subscriptionId) {
-    removeEntry(subscriptions, session, subscriptionId);
+  public synchronized boolean removeSubscription(WampSession session, long subscriptionId) {
+    return removeEntry(subscriptions, session, subscriptionId);
   }
 
-  public synchronized void removeRegistration(WampSession session, long registrationId) {
-    removeEntry(registrations, session, registrationId);
+  public synchronized boolean removeRegistration(WampSession session, long registrationId) {
+    return removeEntry(registrations, session, registrationId);
   }
 
   @Override

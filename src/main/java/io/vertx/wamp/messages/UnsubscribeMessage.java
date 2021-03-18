@@ -2,6 +2,7 @@ package io.vertx.wamp.messages;
 
 import io.vertx.wamp.MessageDecoder;
 import io.vertx.wamp.WAMPMessage;
+
 import java.util.List;
 
 public class UnsubscribeMessage implements WAMPMessage {
@@ -12,6 +13,11 @@ public class UnsubscribeMessage implements WAMPMessage {
   public <T> UnsubscribeMessage(T data, MessageDecoder<?, T> decoder) {
     this.id = decoder.getLong(data, 0);
     this.subscription = decoder.getLong(data, 1);
+  }
+
+  public UnsubscribeMessage(long id, long subscription) {
+    this.id = id;
+    this.subscription = subscription;
   }
 
   public long getId() {
