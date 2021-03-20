@@ -62,7 +62,9 @@ public class MessageFactory {
   }
 
   static WAMPMessage createWelcomeMessage(long sessionId) {
-    final Map<String, Object> roles = Map.of("broker", Collections.emptyMap());
+    final Map<String, Object> roles = Map.of(
+        "broker", Collections.emptyMap(),
+        "dealer", Collections.emptyMap());
     final Map<String, Object> details = Map
         .of("roles", roles, "agent", WAMPWebsocketServer.USER_AGENT);
     return new WelcomeMessage(sessionId, details);
