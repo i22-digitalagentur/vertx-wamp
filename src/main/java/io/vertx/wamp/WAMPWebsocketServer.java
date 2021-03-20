@@ -93,12 +93,12 @@ public class WAMPWebsocketServer implements RealmProvider, Closeable {
 
   @Override
   public void close(Promise<Void> promise) {
-    @SuppressWarnings("java:S3740")
-    final List<Future> promises = connections.parallelStream().map(session -> {
-      final Promise sessionPromise = Promise.promise();
-      session.shutdown(Uri.CLOSE_REALM, sessionPromise);
-      return sessionPromise.future();
-    }).collect(Collectors.toList());
+    @SuppressWarnings("java:S3740") final List<Future> promises = connections.parallelStream()
+        .map(session -> {
+          final Promise sessionPromise = Promise.promise();
+          session.shutdown(Uri.CLOSE_REALM, sessionPromise);
+          return sessionPromise.future();
+        }).collect(Collectors.toList());
     CompositeFuture.join(promises).onComplete(result -> httpServer.close(promise));
   }
 

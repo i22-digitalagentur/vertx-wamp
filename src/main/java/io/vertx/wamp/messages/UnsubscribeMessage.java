@@ -1,7 +1,6 @@
 package io.vertx.wamp.messages;
 
 import io.vertx.wamp.MessageDecoder;
-
 import java.util.List;
 
 public class UnsubscribeMessage extends AbstractWAMPMessage {

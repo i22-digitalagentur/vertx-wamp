@@ -1,7 +1,25 @@
 package io.vertx.wamp;
 
-import io.vertx.wamp.messages.*;
-
+import io.vertx.wamp.messages.AbortMessage;
+import io.vertx.wamp.messages.CallMessage;
+import io.vertx.wamp.messages.ErrorMessage;
+import io.vertx.wamp.messages.EventMessage;
+import io.vertx.wamp.messages.GoodbyeMessage;
+import io.vertx.wamp.messages.HelloMessage;
+import io.vertx.wamp.messages.InvocationMessage;
+import io.vertx.wamp.messages.PublishMessage;
+import io.vertx.wamp.messages.PublishedMessage;
+import io.vertx.wamp.messages.RegisterMessage;
+import io.vertx.wamp.messages.RegisteredMessage;
+import io.vertx.wamp.messages.ResultMessage;
+import io.vertx.wamp.messages.SubscribeMessage;
+import io.vertx.wamp.messages.SubscribedMessage;
+import io.vertx.wamp.messages.UnregisterMessage;
+import io.vertx.wamp.messages.UnregisteredMessage;
+import io.vertx.wamp.messages.UnsubscribeMessage;
+import io.vertx.wamp.messages.UnsubscribedMessage;
+import io.vertx.wamp.messages.WelcomeMessage;
+import io.vertx.wamp.messages.YieldMessage;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -71,9 +89,9 @@ public class MessageFactory {
   }
 
   static WAMPMessage createErrorMessage(WAMPMessage.Type messageType,
-                                        long requestId,
-                                        Map<String, Object> details,
-                                        Uri error) {
+      long requestId,
+      Map<String, Object> details,
+      Uri error) {
     return new ErrorMessage(messageType, requestId, details, error);
   }
 
@@ -86,24 +104,25 @@ public class MessageFactory {
   }
 
   public static InvocationMessage createInvocationMessage(long id,
-                                                          long registrationId,
-                                                          List<Object> arguments,
-                                                          Map<String, Object> argumentsKw) {
-    return new InvocationMessage(id, registrationId, Collections.emptyMap(), arguments, argumentsKw);
+      long registrationId,
+      List<Object> arguments,
+      Map<String, Object> argumentsKw) {
+    return new InvocationMessage(id, registrationId, Collections.emptyMap(), arguments,
+        argumentsKw);
   }
 
   public static WAMPMessage createResultMessage(long requestid,
-                                                Map<String, Object> details,
-                                                List<Object> arguments,
-                                                Map<String, Object> argumentsKw) {
+      Map<String, Object> details,
+      List<Object> arguments,
+      Map<String, Object> argumentsKw) {
     return new ResultMessage(requestid, details, arguments, argumentsKw);
   }
 
   public static EventMessage createEvent(long subscriptionId,
-                                         long publicationId,
-                                         Map<String, Object> details,
-                                         List<Object> arguments,
-                                         Map<String, Object> argumentsKw) {
+      long publicationId,
+      Map<String, Object> details,
+      List<Object> arguments,
+      Map<String, Object> argumentsKw) {
     return new EventMessage(subscriptionId,
         publicationId,
         details,

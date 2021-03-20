@@ -13,8 +13,8 @@ public class EventMessage extends AbstractWAMPMessage {
   private final Map<String, Object> argumentsKw;
 
   public EventMessage(long subscriptionId,
-                      long publicationId,
-                      Map<String, Object> details,
+      long publicationId,
+      Map<String, Object> details,
       List<Object> arguments,
       Map<String, Object> argumentsKw) {
     super(Type.EVENT);

@@ -12,9 +12,9 @@ public class ResultMessage extends AbstractWAMPMessage {
   private final Map<String, Object> argumentsKw;
 
   public ResultMessage(long requestId,
-                       Map<String, Object> details,
-                       List<Object> arguments,
-                       Map<String, Object> argumentsKw) {
+      Map<String, Object> details,
+      List<Object> arguments,
+      Map<String, Object> argumentsKw) {
     super(Type.RESULT);
     this.requestId = requestId;
     this.details = details;

@@ -1,13 +1,13 @@
 package io.vertx.wamp.messages;
 
 import io.vertx.wamp.WAMPMessage;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public abstract class AbstractWAMPMessage implements WAMPMessage {
-  private Type type;
+
+  private final Type type;
 
   protected AbstractWAMPMessage(Type type) {
     this.type = type;
@@ -18,7 +18,7 @@ public abstract class AbstractWAMPMessage implements WAMPMessage {
   }
 
   void addArgsAndArgsKw(ArrayList<Object> list, List<?> arguments,
-                        Map<String, ?> argumentsKw) {
+      Map<String, ?> argumentsKw) {
     if (arguments != null) {
       list.add(arguments);
       if (argumentsKw != null) {

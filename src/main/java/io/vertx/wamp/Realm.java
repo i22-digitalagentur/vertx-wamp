@@ -6,8 +6,15 @@ import io.vertx.wamp.messages.EventMessage;
 import io.vertx.wamp.messages.PublishMessage;
 import io.vertx.wamp.util.NonDuplicateRandomIdGenerator;
 import io.vertx.wamp.util.RandomIdGenerator;
-
-import java.util.*;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -31,26 +38,28 @@ public class Realm {
   }
 
   public Future<Long> publishMessage(Uri topic,
-                                     Map<String, Object> options,
-                                     List<Object> arguments,
-                                     Map<String, Object> argumentsKw) {
+      Map<String, Object> options,
+      List<Object> arguments,
+      Map<String, Object> argumentsKw) {
     final long publicationId = publicationIdGenerator.next();
     List<Future> publishFutures = getSubscriptions(topic).parallelStream()
-                                                         .map(subscription -> deliverEventMessage(subscription,
-                                                             MessageFactory.createEvent(
-                                                                 subscription.id,
-                                                                 publicationId,
-                                                                 options,
-                                                                 arguments,
-                                                                 argumentsKw))).collect(Collectors.toList());
+        .map(subscription -> deliverEventMessage(subscription,
+            MessageFactory.createEvent(
+                subscription.id,
+                publicationId,
+                options,
+                arguments,
+                argumentsKw))).collect(Collectors.toList());
     return CompositeFuture.all(publishFutures).map(publicationId);
   }
 
-  public Future<AbstractMap.SimpleImmutableEntry<List<Object>, Map<String, Object>>> callProcedure(Uri procedure,
-                                                                                                   List<Object> arguments,
-                                                                                                   Map<String, Object> argumentsKw) {
+  public Future<AbstractMap.SimpleImmutableEntry<List<Object>, Map<String, Object>>> callProcedure(
+      Uri procedure,
+      List<Object> arguments,
+      Map<String, Object> argumentsKw) {
     return Future.future(promise -> {
-      final Optional<Subscription> registrationResult = registrations.stream().filter((r) -> r.topic.equals(procedure)).findFirst();
+      final Optional<Subscription> registrationResult = registrations.stream()
+          .filter((r) -> r.topic.equals(procedure)).findFirst();
       if (registrationResult.isEmpty()) {
         promise.fail(new NoSuchElementException());
         return;
@@ -59,13 +68,13 @@ public class Realm {
       final Subscription registration = registrationResult.get();
       registration.consumer.invokeRegistration(MessageFactory.createInvocationMessage(invocationId,
           registration.id, arguments, argumentsKw))
-                           .onComplete((result) -> {
-                             if (result.failed()) {
-                               promise.fail(result.cause());
-                             } else {
-                               promise.complete(result.result());
-                             }
-                           });
+          .onComplete((result) -> {
+            if (result.failed()) {
+              promise.fail(result.cause());
+            } else {
+              promise.complete(result.result());
+            }
+          });
     });
 
   }
@@ -81,7 +90,7 @@ public class Realm {
   private boolean isPublishAuthorized(Subscription subscription, EventMessage message) {
     final SecurityPolicy.ClientInfo clientInfo = subscription.consumer.getClientInfo();
     return clientInfo == null || clientInfo.getPolicy()
-                                           .authorizeEvent(clientInfo, subscription.topic, message);
+        .authorizeEvent(clientInfo, subscription.topic, message);
   }
 
   public Uri getUri() {
@@ -92,9 +101,9 @@ public class Realm {
     // a stream will raise an exception if the underlying data is changed while
     // it's being used so make a temporary copy
     return subscriptions.parallelStream()
-                        // pattern matching is part of the advanced profile only
-                        .filter(subscription -> subscription.topic.equals(pattern))
-                        .collect(Collectors.toUnmodifiableList());
+        // pattern matching is part of the advanced profile only
+        .filter(subscription -> subscription.topic.equals(pattern))
+        .collect(Collectors.toUnmodifiableList());
   }
 
   public synchronized long addSubscription(WampSession session, Uri topic) {
@@ -107,7 +116,7 @@ public class Realm {
 
   public synchronized long addRegistration(WampSession session, Uri topic) {
     if (this.registrations.parallelStream()
-                          .anyMatch((subscription) -> subscription.topic.equals(topic))) {
+        .anyMatch((subscription) -> subscription.topic.equals(topic))) {
       return -1;
     }
     // routers are free to choose a generation strategy - let's re-use the same sequence as for subscriptions

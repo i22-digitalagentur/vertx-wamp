@@ -13,9 +13,9 @@ public class InvocationMessage extends AbstractWAMPMessage {
   private final Map<String, Object> argumentsKw;
 
   public InvocationMessage(long id, long registrationId,
-                           Map<String, Object> details,
-                           List<Object> arguments,
-                           Map<String, Object> argumentsKw) {
+      Map<String, Object> details,
+      List<Object> arguments,
+      Map<String, Object> argumentsKw) {
     super(Type.INVOCATION);
     this.id = id;
     this.registrationId = registrationId;

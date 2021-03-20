@@ -1,12 +1,43 @@
 package io.vertx.wamp.test.server;
 
+import static io.vertx.wamp.Uri.NO_SUCH_REGISTRATION;
+import static io.vertx.wamp.Uri.NO_SUCH_SUBSCRIPTION;
+import static io.vertx.wamp.Uri.PROCEDURE_ALREADY_EXISTS;
+import static io.vertx.wamp.test.server.TestUtils.buildMockClientInfo;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.junit5.VertxExtension;
-import io.vertx.wamp.*;
-import io.vertx.wamp.messages.*;
+import io.vertx.wamp.MessageTransport;
+import io.vertx.wamp.Realm;
+import io.vertx.wamp.RealmProvider;
+import io.vertx.wamp.SecurityPolicy;
+import io.vertx.wamp.Uri;
+import io.vertx.wamp.WAMPMessage;
+import io.vertx.wamp.WampSession;
+import io.vertx.wamp.messages.AbortMessage;
+import io.vertx.wamp.messages.ErrorMessage;
+import io.vertx.wamp.messages.GoodbyeMessage;
+import io.vertx.wamp.messages.HelloMessage;
+import io.vertx.wamp.messages.PublishMessage;
+import io.vertx.wamp.messages.RegisterMessage;
+import io.vertx.wamp.messages.RegisteredMessage;
+import io.vertx.wamp.messages.SubscribeMessage;
+import io.vertx.wamp.messages.SubscribedMessage;
+import io.vertx.wamp.messages.UnregisterMessage;
+import io.vertx.wamp.messages.UnregisteredMessage;
+import io.vertx.wamp.messages.UnsubscribeMessage;
+import io.vertx.wamp.messages.UnsubscribedMessage;
+import io.vertx.wamp.messages.WelcomeMessage;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -17,15 +48,6 @@ import org.mockito.Mockito;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.function.Consumer;
-
-import static io.vertx.wamp.Uri.*;
-import static io.vertx.wamp.test.server.TestUtils.buildMockClientInfo;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith({VertxExtension.class, MockitoExtension.class})
 public class WampSessionTest {
@@ -117,7 +139,7 @@ public class WampSessionTest {
     void testSecurityPolicyAcceptance() {
       SecurityPolicy.ClientInfo clientInfo = buildMockClientInfo();
       Mockito.when(clientInfo.getPolicy().authorizeHello(clientInfo, testRealm.getUri()))
-             .thenReturn(true);
+          .thenReturn(true);
       WampSession.establish(transport, clientInfo, createFakeRealmProvider(List.of(testRealm)));
       transport.receiveHandler.accept(new HelloMessage(testRealm.getUri(), Collections.emptyMap()));
       ArgumentCaptor<WelcomeMessage> captor = ArgumentCaptor.forClass(WelcomeMessage.class);
@@ -179,7 +201,8 @@ public class WampSessionTest {
     void testUnsubscribe() {
       final long subscriptionId = testRealm.addSubscription(session, new Uri("my.topic"));
       transport.receiveHandler.accept(new UnsubscribeMessage(5432L, subscriptionId));
-      ArgumentCaptor<UnsubscribedMessage> captor = ArgumentCaptor.forClass(UnsubscribedMessage.class);
+      ArgumentCaptor<UnsubscribedMessage> captor = ArgumentCaptor
+          .forClass(UnsubscribedMessage.class);
       Mockito.verify(transport).sendMessage(captor.capture(), any());
       assertEquals(5432, captor.getValue().getRequestId());
     }
@@ -224,7 +247,8 @@ public class WampSessionTest {
     void testUnregister() {
       long registrationId = testRealm.addRegistration(session, new Uri("my.procedure"));
       transport.receiveHandler.accept(new UnregisterMessage(5432L, registrationId));
-      ArgumentCaptor<UnregisteredMessage> captor = ArgumentCaptor.forClass(UnregisteredMessage.class);
+      ArgumentCaptor<UnregisteredMessage> captor = ArgumentCaptor
+          .forClass(UnregisteredMessage.class);
       Mockito.verify(transport).sendMessage(captor.capture(), any());
       assertEquals(5432, captor.getValue().getRequestId());
     }
@@ -256,7 +280,7 @@ public class WampSessionTest {
         testRealm.addSubscription(session, topic);
 
         Mockito.when(clientInfo.getPolicy().authorizePublish(clientInfo, testRealm.getUri(), topic))
-               .thenReturn(false);
+            .thenReturn(false);
         transport.receiveHandler.accept(new PublishMessage(5432L, Collections.emptyMap(),
             topic,
             Collections.emptyList(), Collections.emptyMap()));
@@ -269,8 +293,9 @@ public class WampSessionTest {
       @DisplayName("It checks subscribe requests against security policy")
       void testSubscribeSecurityPolicyRejection() {
         Uri topic = new Uri("my.topic");
-        Mockito.when(clientInfo.getPolicy().authorizeSubscribe(clientInfo, testRealm.getUri(), topic))
-               .thenReturn(false);
+        Mockito
+            .when(clientInfo.getPolicy().authorizeSubscribe(clientInfo, testRealm.getUri(), topic))
+            .thenReturn(false);
         transport.receiveHandler.accept(new SubscribeMessage(5432L, Collections.emptyMap(), topic));
         ArgumentCaptor<ErrorMessage> captor = ArgumentCaptor.forClass(ErrorMessage.class);
         Mockito.verify(transport).sendMessage(captor.capture(), any());
@@ -281,9 +306,11 @@ public class WampSessionTest {
       @DisplayName("It checks registration requests against security policy")
       void testRegisterSecurityPolicyRejection() {
         Uri procedure = new Uri("my.procedure");
-        Mockito.when(clientInfo.getPolicy().authorizeRegister(clientInfo, testRealm.getUri(), procedure))
-               .thenReturn(false);
-        transport.receiveHandler.accept(new RegisterMessage(5432L, Collections.emptyMap(), procedure));
+        Mockito.when(
+            clientInfo.getPolicy().authorizeRegister(clientInfo, testRealm.getUri(), procedure))
+            .thenReturn(false);
+        transport.receiveHandler
+            .accept(new RegisterMessage(5432L, Collections.emptyMap(), procedure));
         ArgumentCaptor<ErrorMessage> captor = ArgumentCaptor.forClass(ErrorMessage.class);
         Mockito.verify(transport).sendMessage(captor.capture(), any());
         assertEquals(Uri.NOT_AUTHORIZED, captor.getValue().getError());
@@ -297,7 +324,7 @@ public class WampSessionTest {
         Uri topic = new Uri("my.topic");
         spiedRealm.addSubscription(session, topic);
         Mockito.when(clientInfo.getPolicy().authorizePublish(clientInfo, testRealm.getUri(), topic))
-               .thenReturn(true);
+            .thenReturn(true);
         PublishMessage message = new PublishMessage(5432L, Collections.emptyMap(),
             topic,
             Collections.emptyList(), Collections.emptyMap());

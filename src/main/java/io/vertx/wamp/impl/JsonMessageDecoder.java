@@ -5,7 +5,6 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.wamp.MessageDecoder;
 import io.vertx.wamp.WAMPMessage;
 import io.vertx.wamp.WAMPProtocolException;
-
 import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;

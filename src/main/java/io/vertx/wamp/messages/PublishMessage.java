@@ -2,7 +2,6 @@ package io.vertx.wamp.messages;
 
 import io.vertx.wamp.MessageDecoder;
 import io.vertx.wamp.Uri;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -16,8 +15,8 @@ public class PublishMessage extends AbstractWAMPMessage {
   private final Map<String, Object> argumentsKw;
 
   public PublishMessage(long id, Map<String, Object> options, Uri topic, List<Object> arguments,
-                        Map<String,
-                            Object> argumentsKw) {
+      Map<String,
+          Object> argumentsKw) {
     super(Type.PUBLISH);
     this.id = id;
     this.options = options;
