@@ -7,9 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static io.vertx.wamp.messages.Util.addArgsAndArgsKw;
-
-public class ErrorMessage implements WAMPMessage {
+public class ErrorMessage extends AbstractWAMPMessage {
   private final WAMPMessage.Type requestType;
   private final long id;
   private final Map<String, Object> details;
@@ -25,27 +23,18 @@ public class ErrorMessage implements WAMPMessage {
   }
 
   public ErrorMessage(WAMPMessage.Type requestType,
-                      long requestId, Map<String, Object> details, List<Object> arguments, Uri error) {
-    this(requestType, requestId, details, error, arguments, null);
-  }
-
-  public ErrorMessage(WAMPMessage.Type requestType,
                       long requestId,
                       Map<String, Object> details,
                       Uri error,
                       List<Object> arguments,
                       Map<String, Object> argumentsKw) {
+    super(Type.ERROR);
     this.requestType = requestType;
     this.id = requestId;
     this.details = details;
     this.error = error;
     this.arguments = arguments;
     this.argumentsKw = argumentsKw;
-  }
-
-  @Override
-  public Type getType() {
-    return Type.ERROR;
   }
 
   public Type getRequestType() {

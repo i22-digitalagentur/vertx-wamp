@@ -2,15 +2,12 @@ package io.vertx.wamp.messages;
 
 import io.vertx.wamp.MessageDecoder;
 import io.vertx.wamp.Uri;
-import io.vertx.wamp.WAMPMessage;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static io.vertx.wamp.messages.Util.addArgsAndArgsKw;
-
-public class PublishMessage implements WAMPMessage {
+public class PublishMessage extends AbstractWAMPMessage {
 
   private final long id;
   private final Map<String, Object> options;
@@ -19,8 +16,9 @@ public class PublishMessage implements WAMPMessage {
   private final Map<String, Object> argumentsKw;
 
   public PublishMessage(long id, Map<String, Object> options, Uri topic, List<Object> arguments,
-      Map<String,
-          Object> argumentsKw) {
+                        Map<String,
+                            Object> argumentsKw) {
+    super(Type.PUBLISH);
     this.id = id;
     this.options = options;
     this.topic = topic;
@@ -29,16 +27,12 @@ public class PublishMessage implements WAMPMessage {
   }
 
   public <T> PublishMessage(T data, MessageDecoder<?, T> decoder) {
+    super(Type.PUBLISH);
     this.id = decoder.getLong(data, 0);
     this.options = decoder.getMap(data, 1);
     this.topic = new Uri(decoder.getString(data, 2));
     this.arguments = decoder.getList(data, 3);
     this.argumentsKw = decoder.getMap(data, 4);
-  }
-
-  @Override
-  public Type getType() {
-    return Type.PUBLISH;
   }
 
   @Override

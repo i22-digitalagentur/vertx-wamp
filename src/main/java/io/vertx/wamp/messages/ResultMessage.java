@@ -1,15 +1,10 @@
 package io.vertx.wamp.messages;
 
-import io.vertx.wamp.MessageDecoder;
-import io.vertx.wamp.WAMPMessage;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static io.vertx.wamp.messages.Util.addArgsAndArgsKw;
-
-public class ResultMessage implements WAMPMessage {
+public class ResultMessage extends AbstractWAMPMessage {
 
   private final long requestId;
   private final Map<String, Object> details;
@@ -20,22 +15,11 @@ public class ResultMessage implements WAMPMessage {
                        Map<String, Object> details,
                        List<Object> arguments,
                        Map<String, Object> argumentsKw) {
+    super(Type.RESULT);
     this.requestId = requestId;
     this.details = details;
     this.arguments = arguments;
     this.argumentsKw = argumentsKw;
-  }
-
-  public <T> ResultMessage(T data, MessageDecoder<?, T> decoder) {
-    this.requestId = decoder.getLong(data, 0);
-    this.details = decoder.getMap(data, 1);
-    this.arguments = decoder.elementCount(data) > 2 ? decoder.getList(data, 2) : null;
-    this.argumentsKw = decoder.elementCount(data) > 3 ? decoder.getMap(data, 3) : null;
-  }
-
-  @Override
-  public Type getType() {
-    return Type.RESULT;
   }
 
   @Override

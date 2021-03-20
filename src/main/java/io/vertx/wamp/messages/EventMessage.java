@@ -1,13 +1,10 @@
 package io.vertx.wamp.messages;
 
-import static io.vertx.wamp.messages.Util.addArgsAndArgsKw;
-
-import io.vertx.wamp.WAMPMessage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class EventMessage implements WAMPMessage {
+public class EventMessage extends AbstractWAMPMessage {
 
   private final long subscriptionId;
   private final long publicationId;
@@ -16,20 +13,16 @@ public class EventMessage implements WAMPMessage {
   private final Map<String, Object> argumentsKw;
 
   public EventMessage(long subscriptionId,
-      long publicationId,
-      Map<String, Object> details,
+                      long publicationId,
+                      Map<String, Object> details,
       List<Object> arguments,
       Map<String, Object> argumentsKw) {
+    super(Type.EVENT);
     this.subscriptionId = subscriptionId;
     this.publicationId = publicationId;
     this.details = details;
     this.arguments = arguments;
     this.argumentsKw = argumentsKw;
-  }
-
-  @Override
-  public Type getType() {
-    return Type.EVENT;
   }
 
   @Override

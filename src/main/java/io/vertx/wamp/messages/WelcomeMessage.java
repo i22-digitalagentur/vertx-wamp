@@ -1,26 +1,21 @@
 package io.vertx.wamp.messages;
 
-import io.vertx.wamp.WAMPMessage;
 import java.util.List;
 import java.util.Map;
 
-public class WelcomeMessage implements WAMPMessage {
+public class WelcomeMessage extends AbstractWAMPMessage {
 
   private final long sessionId;
   private final Map<String, ?> details;
 
   public WelcomeMessage(long sessionId, Map<String, ?> details) {
+    super(Type.WELCOME);
     this.sessionId = sessionId;
     this.details = details;
   }
 
   public long getSessionId() {
     return sessionId;
-  }
-
-  @Override
-  public Type getType() {
-    return Type.WELCOME;
   }
 
   @Override

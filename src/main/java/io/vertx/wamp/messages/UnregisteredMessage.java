@@ -1,24 +1,18 @@
 package io.vertx.wamp.messages;
 
-import io.vertx.wamp.WAMPMessage;
-
 import java.util.List;
 
-public class UnregisteredMessage implements WAMPMessage {
+public class UnregisteredMessage extends AbstractWAMPMessage {
 
   private final long requestId;
 
   public UnregisteredMessage(long requestId) {
+    super(Type.UNREGISTERED);
     this.requestId = requestId;
   }
 
   public long getRequestId() {
     return requestId;
-  }
-
-  @Override
-  public Type getType() {
-    return Type.UNREGISTERED;
   }
 
   @Override

@@ -1,22 +1,16 @@
 package io.vertx.wamp.messages;
 
-import io.vertx.wamp.WAMPMessage;
-
 import java.util.List;
 
-public class RegisteredMessage implements WAMPMessage {
+public class RegisteredMessage extends AbstractWAMPMessage {
 
   private final long id;
   private final long registration;
 
   public RegisteredMessage(long requestId, long registration) {
+    super(Type.REGISTERED);
     this.id = requestId;
     this.registration = registration;
-  }
-
-  @Override
-  public Type getType() {
-    return Type.REGISTERED;
   }
 
   @Override
