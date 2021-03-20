@@ -8,6 +8,7 @@ import io.vertx.wamp.messages.*;
 import io.vertx.wamp.util.NonDuplicateRandomIdGenerator;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -29,6 +30,7 @@ public class WampSession {
   private Realm realm;
   private State state;
   private Handler<AsyncResult<Void>> shutdownHandler;
+  private ConcurrentHashMap<Long, Promise<AbstractMap.SimpleImmutableEntry<List<Object>, Map<String, Object>>>> pendingInvocations = new ConcurrentHashMap<>();
   private final Map<WAMPMessage.Type, Consumer<WAMPMessage>> messageHandlers = Map.of(
       WAMPMessage.Type.HELLO, (WAMPMessage msg) -> handleHello((HelloMessage) msg),
       WAMPMessage.Type.SUBSCRIBE, (WAMPMessage msg) -> handleSubscribe((SubscribeMessage) msg),
@@ -38,7 +40,9 @@ public class WampSession {
       WAMPMessage.Type.ABORT, (WAMPMessage msg) -> handleAbort((AbortMessage) msg),
       WAMPMessage.Type.GOODBYE, (WAMPMessage msg) -> handleGoodbye((GoodbyeMessage) msg),
       WAMPMessage.Type.REGISTER, (WAMPMessage msg) -> handleRegister((RegisterMessage) msg),
-      WAMPMessage.Type.UNREGISTER, (WAMPMessage msg) -> handleUnregister((UnregisterMessage) msg)
+      WAMPMessage.Type.UNREGISTER, (WAMPMessage msg) -> handleUnregister((UnregisterMessage) msg),
+      WAMPMessage.Type.CALL, (WAMPMessage msg) -> handleCall((CallMessage) msg),
+      WAMPMessage.Type.YIELD, (WAMPMessage msg) -> handleYield((YieldMessage) msg)
   );
 
   private WampSession(MessageTransport messageTransport,
@@ -109,6 +113,13 @@ public class WampSession {
     }
   }
 
+  public Future<AbstractMap.SimpleImmutableEntry<List<Object>, Map<String, Object>>> invokeRegistration(InvocationMessage msg) {
+    return Future.future((promise) -> {
+      pendingInvocations.put(msg.getId(), promise);
+      sendMessage(msg);
+    });
+  }
+
   private void handlePublish(PublishMessage msg) {
     logger.log(Level.FINEST, "Publishing message: {0}", msg);
     if (clientInfo != null && !clientInfo.getPolicy()
@@ -120,6 +131,35 @@ public class WampSession {
     } else {
       realm.publishMessage(msg).onSuccess(publicationId ->
           sendMessage(MessageFactory.createPublishedMessage(msg.getId(), publicationId)));
+    }
+  }
+
+  private void handleYield(YieldMessage msg) {
+    this.pendingInvocations.computeIfPresent(msg.getRequestId(), (id, promise) -> {
+      promise.complete(new AbstractMap.SimpleImmutableEntry<>(msg.getArguments(), msg.getArgumentsKw()));
+      return null;
+    });
+  }
+
+  private void handleCall(CallMessage msg) {
+    logger.log(Level.FINEST, "Invoking procedure {0}", msg.getProcedure());
+    if (clientInfo != null && !clientInfo.getPolicy().authorizeCall(clientInfo, realm.getUri(), msg.getProcedure())) {
+      sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.CALL,
+          msg.getId(),
+          Map.of(),
+          Uri.NOT_AUTHORIZED));
+    } else {
+      realm.callProcedure(msg.getProcedure(),
+          msg.getArguments(),
+          msg.getArgumentsKw())
+           .onSuccess(arguments ->
+               sendMessage(MessageFactory.createResultMessage(msg.getId(),
+                   Collections.emptyMap(),
+                   arguments.getKey(), arguments.getValue())))
+           .onFailure(throwable ->
+               sendMessage(MessageFactory.createErrorMessage(WAMPMessage.Type.CALL,
+                   msg.getId(), Collections.emptyMap(),
+                   new Uri("failed_to_invoke"))));
     }
   }
 
@@ -288,6 +328,7 @@ public class WampSession {
     ESTABLISHING(WAMPMessage.Type.HELLO),
     ESTABLISHED(WAMPMessage.Type.SUBSCRIBE, WAMPMessage.Type.PUBLISH, WAMPMessage.Type.UNSUBSCRIBE,
         WAMPMessage.Type.REGISTER, WAMPMessage.Type.UNREGISTER,
+        WAMPMessage.Type.CALL, WAMPMessage.Type.YIELD,
         WAMPMessage.Type.GOODBYE),
     CLOSING(), // received goodbye, not expecting any more messages
     SHUTTING_DOWN(WAMPMessage.Type.GOODBYE), // sent goodbye, waiting for ack

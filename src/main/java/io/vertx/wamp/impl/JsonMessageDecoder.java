@@ -5,6 +5,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.wamp.MessageDecoder;
 import io.vertx.wamp.WAMPMessage;
 import io.vertx.wamp.WAMPProtocolException;
+
 import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +20,12 @@ public class JsonMessageDecoder implements MessageDecoder<String, JsonArray> {
     JsonArray jsonArray = (JsonArray) decoded;
     WAMPMessage.Type messageType = WAMPMessage.Type.findByCode(getInteger(jsonArray, 0));
     jsonArray.remove(0);
-    return new AbstractMap.SimpleImmutableEntry(messageType, jsonArray);
+    return new AbstractMap.SimpleImmutableEntry<>(messageType, jsonArray);
+  }
+
+  @Override
+  public Integer elementCount(JsonArray data) {
+    return data.size();
   }
 
   @Override

@@ -1,7 +1,6 @@
 package io.vertx.wamp.messages;
 
 import io.vertx.wamp.MessageDecoder;
-import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPMessage;
 
 import java.util.ArrayList;
@@ -10,43 +9,40 @@ import java.util.Map;
 
 import static io.vertx.wamp.messages.Util.addArgsAndArgsKw;
 
-public class PublishMessage implements WAMPMessage {
+public class YieldMessage implements WAMPMessage {
 
-  private final long id;
+  private final long requestId;
   private final Map<String, Object> options;
-  private final Uri topic;
   private final List<Object> arguments;
   private final Map<String, Object> argumentsKw;
 
-  public PublishMessage(long id, Map<String, Object> options, Uri topic, List<Object> arguments,
-      Map<String,
-          Object> argumentsKw) {
-    this.id = id;
+  public YieldMessage(long requestId,
+                      Map<String, Object> options,
+                      List<Object> arguments,
+                      Map<String, Object> argumentsKw) {
+    this.requestId = requestId;
     this.options = options;
-    this.topic = topic;
     this.arguments = arguments;
     this.argumentsKw = argumentsKw;
   }
 
-  public <T> PublishMessage(T data, MessageDecoder<?, T> decoder) {
-    this.id = decoder.getLong(data, 0);
+  public <T> YieldMessage(T data, MessageDecoder<?, T> decoder) {
+    this.requestId = decoder.getLong(data, 0);
     this.options = decoder.getMap(data, 1);
-    this.topic = new Uri(decoder.getString(data, 2));
-    this.arguments = decoder.getList(data, 3);
-    this.argumentsKw = decoder.getMap(data, 4);
+    this.arguments = decoder.elementCount(data) > 2 ? decoder.getList(data, 2) : null;
+    this.argumentsKw = decoder.elementCount(data) > 3 ? decoder.getMap(data, 3) : null;
   }
 
   @Override
   public Type getType() {
-    return Type.PUBLISH;
+    return Type.YIELD;
   }
 
   @Override
   public List<Object> getPayload() {
     ArrayList<Object> result = new ArrayList<>();
-    result.add(id);
+    result.add(requestId);
     result.add(options);
-    result.add(topic);
     addArgsAndArgsKw(result, arguments, argumentsKw);
     return result;
   }
@@ -59,15 +55,11 @@ public class PublishMessage implements WAMPMessage {
     return argumentsKw;
   }
 
-  public Uri getTopic() {
-    return topic;
+  public Long getRequestId() {
+    return requestId;
   }
 
   public Map<String, Object> getOptions() {
     return options;
-  }
-
-  public long getId() {
-    return id;
   }
 }

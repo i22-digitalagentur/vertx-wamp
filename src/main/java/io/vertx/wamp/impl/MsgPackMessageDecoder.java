@@ -3,19 +3,15 @@ package io.vertx.wamp.impl;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.wamp.MessageDecoder;
 import io.vertx.wamp.WAMPMessage;
-import java.io.IOException;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 import org.msgpack.value.ArrayValue;
 import org.msgpack.value.IntegerValue;
 import org.msgpack.value.MapValue;
 import org.msgpack.value.Value;
+
+import java.io.IOException;
+import java.util.*;
 
 public class MsgPackMessageDecoder implements MessageDecoder<Buffer, List<Object>> {
 
@@ -34,6 +30,11 @@ public class MsgPackMessageDecoder implements MessageDecoder<Buffer, List<Object
     WAMPMessage.Type messageType = WAMPMessage.Type.findByCode(getInteger(messageData, 0));
     messageData.remove(0);
     return new AbstractMap.SimpleImmutableEntry<>(messageType, messageData);
+  }
+
+  @Override
+  public Integer elementCount(List<Object> data) {
+    return data.size();
   }
 
   @Override

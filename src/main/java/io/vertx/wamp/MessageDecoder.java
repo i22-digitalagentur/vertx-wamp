@@ -15,6 +15,8 @@ public interface MessageDecoder<I, O> {
    */
   Map.Entry<WAMPMessage.Type, O> parseMessage(I data) throws IOException;
 
+  Integer elementCount(O data);
+
   String getString(O data, int idx);
 
   Map<String, Object> getMap(O data, int idx);

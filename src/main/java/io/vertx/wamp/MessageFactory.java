@@ -33,6 +33,10 @@ public class MessageFactory {
         return new RegisterMessage(decoded.getValue(), messageDecoder);
       case UNREGISTER:
         return new UnregisterMessage(decoded.getValue(), messageDecoder);
+      case YIELD:
+        return new YieldMessage(decoded.getValue(), messageDecoder);
+      case CALL:
+        return new CallMessage(decoded.getValue(), messageDecoder);
       default:
         throw new IllegalArgumentException(String.format("Construction of %s not supported",
             decoded.getKey().name()));
@@ -67,9 +71,9 @@ public class MessageFactory {
   }
 
   static WAMPMessage createErrorMessage(WAMPMessage.Type messageType,
-      long requestId,
-      Map<String, Object> details,
-      Uri error) {
+                                        long requestId,
+                                        Map<String, Object> details,
+                                        Uri error) {
     return new ErrorMessage(messageType, requestId, details, error);
   }
 
@@ -81,11 +85,25 @@ public class MessageFactory {
     return new RegisteredMessage(id, registrationId);
   }
 
+  public static InvocationMessage createInvocationMessage(long id,
+                                                          long registrationId,
+                                                          List<Object> arguments,
+                                                          Map<String, Object> argumentsKw) {
+    return new InvocationMessage(id, registrationId, Collections.emptyMap(), arguments, argumentsKw);
+  }
+
+  public static WAMPMessage createResultMessage(long requestid,
+                                                Map<String, Object> details,
+                                                List<Object> arguments,
+                                                Map<String, Object> argumentsKw) {
+    return new ResultMessage(requestid, details, arguments, argumentsKw);
+  }
+
   public static EventMessage createEvent(long subscriptionId,
-      long publicationId,
-      Map<String, Object> details,
-      List<Object> arguments,
-      Map<String, Object> argumentsKw) {
+                                         long publicationId,
+                                         Map<String, Object> details,
+                                         List<Object> arguments,
+                                         Map<String, Object> argumentsKw) {
     return new EventMessage(subscriptionId,
         publicationId,
         details,

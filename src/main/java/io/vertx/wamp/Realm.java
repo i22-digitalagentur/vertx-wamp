@@ -34,7 +34,7 @@ public class Realm {
                                      Map<String, Object> options,
                                      List<Object> arguments,
                                      Map<String, Object> argumentsKw) {
-    long publicationId = publicationIdGenerator.next();
+    final long publicationId = publicationIdGenerator.next();
     List<Future> publishFutures = getSubscriptions(topic).parallelStream()
                                                          .map(subscription -> deliverEventMessage(subscription,
                                                              MessageFactory.createEvent(
@@ -44,6 +44,30 @@ public class Realm {
                                                                  arguments,
                                                                  argumentsKw))).collect(Collectors.toList());
     return CompositeFuture.all(publishFutures).map(publicationId);
+  }
+
+  public Future<AbstractMap.SimpleImmutableEntry<List<Object>, Map<String, Object>>> callProcedure(Uri procedure,
+                                                                                                   List<Object> arguments,
+                                                                                                   Map<String, Object> argumentsKw) {
+    return Future.future(promise -> {
+      final Optional<Subscription> registrationResult = registrations.stream().filter((r) -> r.topic.equals(procedure)).findFirst();
+      if (registrationResult.isEmpty()) {
+        promise.fail(new NoSuchElementException());
+        return;
+      }
+      final long invocationId = publicationIdGenerator.next();
+      final Subscription registration = registrationResult.get();
+      registration.consumer.invokeRegistration(MessageFactory.createInvocationMessage(invocationId,
+          registration.id, arguments, argumentsKw))
+                           .onComplete((result) -> {
+                             if (result.failed()) {
+                               promise.fail(result.cause());
+                             } else {
+                               promise.complete(result.result());
+                             }
+                           });
+    });
+
   }
 
   private Future<Void> deliverEventMessage(Subscription subscription, EventMessage message) {

@@ -4,10 +4,14 @@ import io.crossbar.autobahn.wamp.Client;
 import io.crossbar.autobahn.wamp.Session;
 import io.crossbar.autobahn.wamp.interfaces.IInvocationHandler;
 import io.crossbar.autobahn.wamp.transports.NettyWebSocket;
-import io.crossbar.autobahn.wamp.types.*;
+import io.crossbar.autobahn.wamp.types.InvocationResult;
+import io.crossbar.autobahn.wamp.types.PublishOptions;
+import io.crossbar.autobahn.wamp.types.Registration;
+import io.crossbar.autobahn.wamp.types.Subscription;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.junit5.Checkpoint;
+import io.vertx.junit5.Timeout;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import io.vertx.wamp.Realm;
@@ -23,6 +27,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static io.vertx.wamp.util.IdGenerator.MAX_ID;
 import static org.junit.jupiter.api.Assertions.*;
@@ -196,6 +201,41 @@ class IntegrationTest {
             return true;
           }));
       connectSessionOrFail(testContext, session);
+    });
+  }
+
+  @Test
+  @DisplayName("It invokes procedures when they are called")
+  @Timeout(value = 2000, timeUnit = TimeUnit.SECONDS)
+  void testRegistrationInvocation(Vertx vertx, VertxTestContext testContext) {
+    Checkpoint invokeCheckpoint = testContext.checkpoint();
+    Checkpoint resultCheckpoint = testContext.checkpoint();
+
+    startWithTestRealm(vertx, testContext, server -> {
+      Session procedureProviderSession = new Session();
+      Session procedureInvokerSession = new Session();
+
+      procedureProviderSession.addOnJoinListener((session1, sessionDetails) ->
+          procedureProviderSession.register("addInts",
+              (IInvocationHandler) (list, map, invocationDetails) -> {
+                final int x1 = (Integer) list.get(0);
+                final int x2 = (Integer) list.get(1);
+                invokeCheckpoint.flag();
+                return new InvocationResult(x1 + x2);
+              }).thenApply((_registration) -> {
+            connectSessionOrFail(testContext, procedureInvokerSession);
+            return true;
+          }));
+      procedureInvokerSession.addOnJoinListener((session2, sessionDetails) ->
+          procedureInvokerSession.call("addInts", List.of(1, 2), Integer.class)
+                                 .whenComplete((result, action) -> {
+                                   testContext.verify(() ->
+                                       assertEquals(3, result)
+                                   );
+                                   resultCheckpoint.flag();
+                                 })
+      );
+      connectSessionOrFail(testContext, procedureProviderSession);
     });
   }
 

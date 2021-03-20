@@ -101,5 +101,10 @@ public class SecurityPolicyExamples {
     public boolean authorizePublish(ExampleClientInfo client, Uri realm, Uri topic) {
       return client instanceof AuthorizedClientInfo;
     }
+
+    @Override
+    public boolean authorizeCall(ExampleClientInfo client, Uri realm, Uri procedure) {
+      return false;
+    }
   }
 }

@@ -28,10 +28,14 @@ public interface WAMPMessage {
     UNSUBSCRIBE(34),
     UNSUBSCRIBED(35),
     EVENT(36),
+    CALL(48),
+    RESULT(50),
     REGISTER(64),
     REGISTERED(65),
     UNREGISTER(66),
-    UNREGISTERED(67);
+    UNREGISTERED(67),
+    INVOCATION(68),
+    YIELD(70);
 
     private final int messageCode;
 

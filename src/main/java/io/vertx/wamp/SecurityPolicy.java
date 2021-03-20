@@ -56,6 +56,16 @@ public interface SecurityPolicy<T extends SecurityPolicy.ClientInfo> {
    */
   boolean authorizePublish(T client, Uri realm, Uri topic);
 
+  /**
+   * Authorize invocation of a given procedure by a client
+   *
+   * @param client    the client attempting to invoke a procedure
+   * @param realm     the realm the invocation is happening in
+   * @param procedure the procedure being invoked
+   * @return whether invocation should be permitted (true) or not (false)
+   */
+  boolean authorizeCall(T client, Uri realm, Uri procedure);
+
   interface ClientInfo {
 
     @SuppressWarnings("java:S3740")
