@@ -9,6 +9,7 @@
     <version>38</version>
   </parent>
 
+  <groupId>de.i22</groupId>
   <artifactId>vertx-wamp</artifactId>
   <version>4.0.3-SNAPSHOT</version>
 
@@ -20,6 +21,12 @@
       <organizationUrl>https://www.i22.de</organizationUrl>
     </developer>
   </developers>
+
+  <scm>
+    <connection>scm:git:git://github.com/i22-digitalagentur/vertx-wamp.git</connection>
+    <developerConnection>scm:git:ssh://github.com:i22-digitalagentur/vertx-wamp.git</developerConnection>
+    <url>https://github.com/i22-digitalagentur/vertx-wamp/tree/master</url>
+  </scm>
 
   <properties>
     <stack.version>4.0.3</stack.version>
@@ -40,6 +47,7 @@
 
   <name>Vert.x WAMP</name>
   <description>Vert.x WAMP reactive client and broker</description>
+  <url>https://github.com/i22-digitalagentur/vertx-wamp</url>
 
   <dependencies>
     <dependency>
@@ -141,6 +149,20 @@
           <source>11</source>
           <target>11</target>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-gpg-plugin</artifactId>
+        <version>1.6</version>
+        <executions>
+          <execution>
+            <id>sign-artifacts</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>sign</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
