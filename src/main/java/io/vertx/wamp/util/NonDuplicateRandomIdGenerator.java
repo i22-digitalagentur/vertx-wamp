@@ -5,12 +5,13 @@ import java.util.Set;
 
 /**
  * For sessions: generates random IDs but avoids using any twice.
- *
- * Session IDs have the specific requirement that sessions are potentially
- * long-lived and as such, ID generation must take care to never re-use IDs of
- * still-running sessions.
+ * <p>
+ * Session IDs as well as subscription and registration IDs have the specific requirement that they
+ * are potentially long-lived and as such, ID generation must take care to never re-use IDs of
+ * still-running sessions or existing subscriptions / registrations.
  */
 public class NonDuplicateRandomIdGenerator extends RandomIdGenerator {
+
   private final Set<Long> currentIds = new HashSet<>();
 
   public long next() {

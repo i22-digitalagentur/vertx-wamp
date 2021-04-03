@@ -1,21 +1,16 @@
 package io.vertx.wamp.messages;
 
-import io.vertx.wamp.WAMPMessage;
 import java.util.List;
 
-public class PublishedMessage implements WAMPMessage {
+public class PublishedMessage extends AbstractWAMPMessage {
 
   private final long id;
   private final long publication;
 
   public PublishedMessage(long requestId, long publication) {
+    super(Type.PUBLISHED);
     this.id = requestId;
     this.publication = publication;
-  }
-
-  @Override
-  public Type getType() {
-    return Type.PUBLISHED;
   }
 
   @Override

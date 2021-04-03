@@ -37,6 +37,11 @@ public class MsgPackMessageDecoder implements MessageDecoder<Buffer, List<Object
   }
 
   @Override
+  public Integer elementCount(List<Object> data) {
+    return data.size();
+  }
+
+  @Override
   public String getString(List<Object> data, int idx) {
     return data.get(idx).toString();
   }

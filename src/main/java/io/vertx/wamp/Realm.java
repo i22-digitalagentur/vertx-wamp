@@ -4,10 +4,18 @@ import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.wamp.messages.EventMessage;
 import io.vertx.wamp.messages.PublishMessage;
+import io.vertx.wamp.util.NonDuplicateRandomIdGenerator;
 import io.vertx.wamp.util.RandomIdGenerator;
-import io.vertx.wamp.util.SequentialIdGenerator;
-
-import java.util.*;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 // the realm manages all subscriptions and publications in it
@@ -16,7 +24,8 @@ public class Realm {
   private final Uri uri;
 
   private final List<Subscription> subscriptions = new ArrayList<>();
-  private final SequentialIdGenerator subscriptionIdGenerator = new SequentialIdGenerator();
+  private final List<Subscription> registrations = new ArrayList<>();
+  private final NonDuplicateRandomIdGenerator subscriptionIdGenerator = new NonDuplicateRandomIdGenerator();
   private final RandomIdGenerator publicationIdGenerator = new RandomIdGenerator();
 
   public Realm(Uri uri) {
@@ -32,16 +41,42 @@ public class Realm {
       Map<String, Object> options,
       List<Object> arguments,
       Map<String, Object> argumentsKw) {
-    long publicationId = publicationIdGenerator.next();
+    final long publicationId = publicationIdGenerator.next();
     List<Future> publishFutures = getSubscriptions(topic).parallelStream()
-                                                         .map(subscription -> deliverEventMessage(subscription,
-                                                             MessageFactory.createEvent(
-                                                                 subscription.id,
-                                                                 publicationId,
-                                                                 options,
-                                                                 arguments,
-                                                                 argumentsKw))).collect(Collectors.toList());
+        .map(subscription -> deliverEventMessage(subscription,
+            MessageFactory.createEvent(
+                subscription.id,
+                publicationId,
+                options,
+                arguments,
+                argumentsKw))).collect(Collectors.toList());
     return CompositeFuture.all(publishFutures).map(publicationId);
+  }
+
+  public Future<AbstractMap.SimpleImmutableEntry<List<Object>, Map<String, Object>>> callProcedure(
+      Uri procedure,
+      List<Object> arguments,
+      Map<String, Object> argumentsKw) {
+    return Future.future(promise -> {
+      final Optional<Subscription> registrationResult = registrations.stream()
+          .filter((r) -> r.topic.equals(procedure)).findFirst();
+      if (registrationResult.isEmpty()) {
+        promise.fail(new NoSuchElementException());
+        return;
+      }
+      final long invocationId = publicationIdGenerator.next();
+      final Subscription registration = registrationResult.get();
+      registration.consumer.invokeRegistration(MessageFactory.createInvocationMessage(invocationId,
+          registration.id, arguments, argumentsKw))
+          .onComplete((result) -> {
+            if (result.failed()) {
+              promise.fail(result.cause());
+            } else {
+              promise.complete(result.result());
+            }
+          });
+    });
+
   }
 
   private Future<Void> deliverEventMessage(Subscription subscription, EventMessage message) {
@@ -72,38 +107,59 @@ public class Realm {
   }
 
   public synchronized long addSubscription(WampSession session, Uri topic) {
-    final long subscriptionId = generateSubscriptionId();
+    final long subscriptionId = subscriptionIdGenerator.next();
     this.subscriptions.add(new Subscription(session,
         subscriptionId,
         topic));
     return subscriptionId;
   }
 
+  public synchronized long addRegistration(WampSession session, Uri topic) {
+    if (this.registrations.parallelStream()
+        .anyMatch((subscription) -> subscription.topic.equals(topic))) {
+      return -1;
+    }
+    // routers are free to choose a generation strategy - let's re-use the same sequence as for subscriptions
+    final long registrationId = subscriptionIdGenerator.next();
+    // but still store them separately
+    this.registrations.add(new Subscription(session,
+        registrationId,
+        topic));
+    return registrationId;
+  }
+
   public synchronized void removeSession(WampSession session) {
-    this.subscriptions.removeIf(s -> s.consumer == session);
+    Predicate<Subscription> checkId = (Subscription s) -> {
+      if (s.consumer == session) {
+        subscriptionIdGenerator.release(s.id);
+        return true;
+      } else {
+        return false;
+      }
+    };
+    this.subscriptions.removeIf(checkId);
+    this.registrations.removeIf(checkId);
+  }
+
+  private boolean removeEntry(List<Subscription> list, WampSession session, long entryId) {
+    final Iterator<Subscription> it = list.iterator();
+    while (it.hasNext()) {
+      final Subscription s = it.next();
+      if (s.id == entryId && s.consumer == session) {
+        it.remove();
+        return true;
+      }
+    }
+    return false;
   }
 
   // pass in the session so that adversarial or buggy clients can't unsubscribe s/o else
-  public synchronized void removeSubscription(WampSession session, long subscriptionId) {
-    final Iterator<Subscription> it = this.subscriptions.iterator();
-    while (it.hasNext()) {
-      final Subscription s = it.next();
-      if (s.id == subscriptionId && s.consumer == session) {
-        it.remove();
-        return;
-      }
-    }
+  public synchronized boolean removeSubscription(WampSession session, long subscriptionId) {
+    return removeEntry(subscriptions, session, subscriptionId);
   }
 
-  private long generateSubscriptionId() {
-    // as stupid & simple as possible for now
-    while (true) {
-      final long retVal = this.subscriptionIdGenerator.next();
-      if (subscriptions.stream().noneMatch(
-          subscription -> subscription.id == retVal)) {
-        return retVal;
-      }
-    }
+  public synchronized boolean removeRegistration(WampSession session, long registrationId) {
+    return removeEntry(registrations, session, registrationId);
   }
 
   @Override
@@ -121,6 +177,7 @@ public class Realm {
     return uri.toString();
   }
 
+  // TODO: rename this - it's re-used for both subscription and registration
   static class Subscription {
 
     final Uri topic;
@@ -136,6 +193,11 @@ public class Realm {
     @Override
     public boolean equals(Object obj) {
       return (obj instanceof Subscription && ((Subscription) obj).id == id);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(id);
     }
   }
 }

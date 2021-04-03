@@ -2,12 +2,12 @@ package io.vertx.wamp.messages;
 
 import java.util.List;
 
-public class UnsubscribedMessage extends AbstractWAMPMessage {
+public class UnregisteredMessage extends AbstractWAMPMessage {
 
   private final long requestId;
 
-  public UnsubscribedMessage(long requestId) {
-    super(Type.UNSUBSCRIBED);
+  public UnregisteredMessage(long requestId) {
+    super(Type.UNREGISTERED);
     this.requestId = requestId;
   }
 

@@ -6,32 +6,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class PublishMessage extends AbstractWAMPMessage {
+public class CallMessage extends AbstractWAMPMessage {
 
   private final long id;
   private final Map<String, Object> options;
-  private final Uri topic;
+  private final Uri procedure;
   private final List<Object> arguments;
   private final Map<String, Object> argumentsKw;
 
-  public PublishMessage(long id, Map<String, Object> options, Uri topic, List<Object> arguments,
-      Map<String,
-          Object> argumentsKw) {
-    super(Type.PUBLISH);
-    this.id = id;
-    this.options = options;
-    this.topic = topic;
-    this.arguments = arguments;
-    this.argumentsKw = argumentsKw;
-  }
-
-  public <T> PublishMessage(T data, MessageDecoder<?, T> decoder) {
-    super(Type.PUBLISH);
+  public <T> CallMessage(T data, MessageDecoder<?, T> decoder) {
+    super(Type.CALL);
     this.id = decoder.getLong(data, 0);
     this.options = decoder.getMap(data, 1);
-    this.topic = new Uri(decoder.getString(data, 2));
-    this.arguments = decoder.getList(data, 3);
-    this.argumentsKw = decoder.getMap(data, 4);
+    this.procedure = new Uri(decoder.getString(data, 2));
+    this.arguments = decoder.elementCount(data) > 3 ? decoder.getList(data, 3) : null;
+    this.argumentsKw = decoder.elementCount(data) > 4 ? decoder.getMap(data, 4) : null;
   }
 
   @Override
@@ -39,7 +28,7 @@ public class PublishMessage extends AbstractWAMPMessage {
     ArrayList<Object> result = new ArrayList<>();
     result.add(id);
     result.add(options);
-    result.add(topic);
+    result.add(procedure);
     addArgsAndArgsKw(result, arguments, argumentsKw);
     return result;
   }
@@ -52,8 +41,8 @@ public class PublishMessage extends AbstractWAMPMessage {
     return argumentsKw;
   }
 
-  public Uri getTopic() {
-    return topic;
+  public Uri getProcedure() {
+    return procedure;
   }
 
   public Map<String, Object> getOptions() {

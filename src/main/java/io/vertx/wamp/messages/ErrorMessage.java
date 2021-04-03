@@ -1,15 +1,12 @@
 package io.vertx.wamp.messages;
 
-import static io.vertx.wamp.messages.Util.addArgsAndArgsKw;
-
-import io.vertx.core.json.JsonArray;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPMessage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class ErrorMessage implements WAMPMessage {
+public class ErrorMessage extends AbstractWAMPMessage {
 
   private final WAMPMessage.Type requestType;
   private final long id;
@@ -17,15 +14,6 @@ public class ErrorMessage implements WAMPMessage {
   private final Uri error;
   private final List<Object> arguments;
   private final Map<String, Object> argumentsKw;
-
-  public ErrorMessage(JsonArray args) {
-    this.requestType = WAMPMessage.Type.findByCode(args.getInteger(0));
-    this.id = args.getLong(1);
-    this.details = args.getJsonObject(2).getMap();
-    this.error = new Uri(args.getString(3));
-    this.arguments = args.size() > 4 ? args.getJsonArray(4).getList() : null;
-    this.argumentsKw = args.size() > 5 ? args.getJsonObject(5).getMap() : null;
-  }
 
   public ErrorMessage(WAMPMessage.Type requestType,
       long requestId,
@@ -40,6 +28,7 @@ public class ErrorMessage implements WAMPMessage {
       Uri error,
       List<Object> arguments,
       Map<String, Object> argumentsKw) {
+    super(Type.ERROR);
     this.requestType = requestType;
     this.id = requestId;
     this.details = details;
@@ -48,9 +37,8 @@ public class ErrorMessage implements WAMPMessage {
     this.argumentsKw = argumentsKw;
   }
 
-  @Override
-  public Type getType() {
-    return Type.ERROR;
+  public Type getRequestType() {
+    return requestType;
   }
 
   @Override

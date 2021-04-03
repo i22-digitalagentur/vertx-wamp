@@ -19,7 +19,12 @@ public class JsonMessageDecoder implements MessageDecoder<String, JsonArray> {
     JsonArray jsonArray = (JsonArray) decoded;
     WAMPMessage.Type messageType = WAMPMessage.Type.findByCode(getInteger(jsonArray, 0));
     jsonArray.remove(0);
-    return new AbstractMap.SimpleImmutableEntry(messageType, jsonArray);
+    return new AbstractMap.SimpleImmutableEntry<>(messageType, jsonArray);
+  }
+
+  @Override
+  public Integer elementCount(JsonArray data) {
+    return data.size();
   }
 
   @Override

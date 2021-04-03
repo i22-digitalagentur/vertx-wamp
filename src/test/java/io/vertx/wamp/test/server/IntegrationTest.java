@@ -1,31 +1,38 @@
 package io.vertx.wamp.test.server;
 
+import static io.vertx.wamp.util.IdGenerator.MAX_ID;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import io.crossbar.autobahn.wamp.Client;
 import io.crossbar.autobahn.wamp.Session;
+import io.crossbar.autobahn.wamp.interfaces.IInvocationHandler;
 import io.crossbar.autobahn.wamp.transports.NettyWebSocket;
+import io.crossbar.autobahn.wamp.types.InvocationResult;
 import io.crossbar.autobahn.wamp.types.PublishOptions;
+import io.crossbar.autobahn.wamp.types.Registration;
 import io.crossbar.autobahn.wamp.types.Subscription;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.junit5.Checkpoint;
+import io.vertx.junit5.Timeout;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import io.vertx.wamp.Realm;
 import io.vertx.wamp.Uri;
 import io.vertx.wamp.WAMPWebsocketServer;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
-import static io.vertx.wamp.util.IdGenerator.MAX_ID;
-import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(VertxExtension.class)
 class IntegrationTest {
@@ -105,13 +112,13 @@ class IntegrationTest {
       session.addOnJoinListener((session1, sessionDetails) ->
           session.publish("hello.world", Collections.emptyList(), Map
               .of("Hello", "world"), new PublishOptions(true, false))
-                 .whenComplete((publication, throwable) -> {
-                   testContext.verify(() -> {
-                     assertNull(throwable);
-                     assertTrue(publication.publication > 0);
-                   });
-                   checkpoint.flag();
-                 }));
+              .whenComplete((publication, throwable) -> {
+                testContext.verify(() -> {
+                  assertNull(throwable);
+                  assertTrue(publication.publication > 0);
+                });
+                checkpoint.flag();
+              }));
       connectSessionOrFail(testContext, session, subProtocol);
     });
   }
@@ -126,7 +133,7 @@ class IntegrationTest {
           session.subscribe("hello.world", (o, eventDetails) -> {
             testContext.verify(() ->
                 assertTrue((eventDetails.publication >= 1) &&
-                           (eventDetails.publication <= MAX_ID)));
+                    (eventDetails.publication <= MAX_ID)));
             checkpoint.flag();
           }).thenApply((Subscription subscription) -> {
             testContext.verify(() -> assertTrue(subscription.isActive()));
@@ -137,6 +144,30 @@ class IntegrationTest {
             return true;
           }));
       connectSessionOrFail(testContext, session, subProtocol);
+    });
+  }
+
+  @Test
+  @DisplayName("It allows registering and unregistering a procedure")
+  void testRegisterAndUnregister(Vertx vertx, VertxTestContext testContext) {
+    Checkpoint checkpoint = testContext.checkpoint();
+
+    startWithTestRealm(vertx, testContext, server -> {
+      Session session = new Session();
+      session.addOnJoinListener((session1, sessionDetails) ->
+          session.register("hello.world", (IInvocationHandler)
+              (list, map, invocationDetails) -> new InvocationResult(3)
+          ).thenApply((Registration registration) -> {
+            testContext.verify(() -> assertTrue(registration.isActive()));
+            session.unregister(registration).thenApply((Integer result) -> {
+              // let's assume 0 means success...
+              testContext.verify(() -> assertEquals(0, result));
+              checkpoint.flag();
+              return true;
+            });
+            return true;
+          }));
+      connectSessionOrFail(testContext, session);
     });
   }
 
@@ -175,9 +206,44 @@ class IntegrationTest {
     });
   }
 
+  @Test
+  @DisplayName("It invokes procedures when they are called")
+  @Timeout(value = 2000, timeUnit = TimeUnit.SECONDS)
+  void testRegistrationInvocation(Vertx vertx, VertxTestContext testContext) {
+    Checkpoint invokeCheckpoint = testContext.checkpoint();
+    Checkpoint resultCheckpoint = testContext.checkpoint();
+
+    startWithTestRealm(vertx, testContext, server -> {
+      Session procedureProviderSession = new Session();
+      Session procedureInvokerSession = new Session();
+
+      procedureProviderSession.addOnJoinListener((session1, sessionDetails) ->
+          procedureProviderSession.register("addInts",
+              (IInvocationHandler) (list, map, invocationDetails) -> {
+                final int x1 = (Integer) list.get(0);
+                final int x2 = (Integer) list.get(1);
+                invokeCheckpoint.flag();
+                return new InvocationResult(x1 + x2);
+              }).thenApply((_registration) -> {
+            connectSessionOrFail(testContext, procedureInvokerSession);
+            return true;
+          }));
+      procedureInvokerSession.addOnJoinListener((session2, sessionDetails) ->
+          procedureInvokerSession.call("addInts", List.of(1, 2), Integer.class)
+              .whenComplete((result, action) -> {
+                testContext.verify(() ->
+                    assertEquals(3, result)
+                );
+                resultCheckpoint.flag();
+              })
+      );
+      connectSessionOrFail(testContext, procedureProviderSession);
+    });
+  }
+
   private void startWithTestRealm(Vertx vertx,
-                                  VertxTestContext testContext,
-                                  Handler<WAMPWebsocketServer> handler) {
+      VertxTestContext testContext,
+      Handler<WAMPWebsocketServer> handler) {
     WAMPWebsocketServer server = WAMPWebsocketServer.create(vertx);
     Checkpoint startCheckpoint = testContext.checkpoint();
     server.addRealm(testRealm).listen(LISTEN_PORT, LISTEN_HOST).onComplete(res -> {
@@ -207,7 +273,7 @@ class IntegrationTest {
   }
 
   private void connectSessionOrFail(VertxTestContext testContext, Session session,
-                                    String subProtocol) {
+      String subProtocol) {
     Client client = createClient(session, subProtocol);
     client.connect().handle((exitInfo, throwable) -> {
       if (throwable != null) {
