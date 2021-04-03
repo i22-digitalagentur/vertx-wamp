@@ -10,7 +10,7 @@
   </parent>
 
   <artifactId>vertx-wamp</artifactId>
-  <version>4.0.1-SNAPSHOT</version>
+  <version>4.0.3-SNAPSHOT</version>
 
   <developers>
     <developer>
